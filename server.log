@@ -1,0 +1,71 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------< com.naijavehicle:api >------------------------
+[INFO] Building vehicle-verification-api 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.5.0:clean (default-clean) @ api ---
+[INFO] Deleting /Users/cleverdigital/Documents/workstation/vehicle-verification-api/target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ api ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] Copying 0 resource from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ api ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 7 source files with javac [debug parameters release 17] to target/classes
+[INFO] 
+[INFO] --- spring-boot:4.0.5:start (default-cli) @ api ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.5)
+
+2026-03-26T22:12:35.641+01:00  INFO 38942 --- [vehicle-verification-api] [           main] c.n.a.VehicleVerificationApiApplication  : Starting VehicleVerificationApiApplication using Java 17.0.11 with PID 38942 (/Users/cleverdigital/Documents/workstation/vehicle-verification-api/target/classes started by cleverdigital in /Users/cleverdigital/Documents/workstation/vehicle-verification-api)
+2026-03-26T22:12:35.643+01:00  INFO 38942 --- [vehicle-verification-api] [           main] c.n.a.VehicleVerificationApiApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-03-26T22:12:36.006+01:00  INFO 38942 --- [vehicle-verification-api] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-03-26T22:12:36.012+01:00  INFO 38942 --- [vehicle-verification-api] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-26T22:12:36.012+01:00  INFO 38942 --- [vehicle-verification-api] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.20]
+2026-03-26T22:12:36.027+01:00  INFO 38942 --- [vehicle-verification-api] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 363 ms
+2026-03-26T22:12:36.176+01:00  INFO 38942 --- [vehicle-verification-api] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-03-26T22:12:36.179+01:00  INFO 38942 --- [vehicle-verification-api] [           main] c.n.a.VehicleVerificationApiApplication  : Started VehicleVerificationApiApplication in 0.722 seconds (process running for 0.972)
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.363 s
+[INFO] Finished at: 2026-03-26T22:12:36+01:00
+[INFO] ------------------------------------------------------------------------
+2026-03-26T22:12:46.754+01:00  INFO 38942 --- [vehicle-verification-api] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-26T22:12:46.755+01:00  INFO 38942 --- [vehicle-verification-api] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-03-26T22:12:46.755+01:00  INFO 38942 --- [vehicle-verification-api] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
+java.util.concurrent.CompletionException: java.lang.RuntimeException: Failed to scrape AskNIID: HTTP error fetching URL. Status=404, URL=[https://askniid.org/VerifySingle.aspx]
+	at java.base/java.util.concurrent.CompletableFuture.encodeThrowable(CompletableFuture.java:315)
+	at java.base/java.util.concurrent.CompletableFuture.completeThrowable(CompletableFuture.java:320)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1770)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.exec(CompletableFuture.java:1760)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)
+	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)
+Caused by: java.lang.RuntimeException: Failed to scrape AskNIID: HTTP error fetching URL. Status=404, URL=[https://askniid.org/VerifySingle.aspx]
+	at com.naijavehicle.api.service.AskNiidService.verifyLicensePlate(AskNiidService.java:78)
+	at com.naijavehicle.api.controller.VerificationController.lambda$verifyPlate$0(VerificationController.java:29)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1768)
+	... 6 more
+Caused by: org.jsoup.HttpStatusException: HTTP error fetching URL. Status=404, URL=[https://askniid.org/VerifySingle.aspx]
+	at org.jsoup.helper.HttpConnection$Response.execute(HttpConnection.java:879)
+	at org.jsoup.helper.HttpConnection$Response.execute(HttpConnection.java:818)
+	at org.jsoup.helper.HttpConnection.execute(HttpConnection.java:346)
+	at com.naijavehicle.api.service.AskNiidService.verifyLicensePlate(AskNiidService.java:43)
+	... 8 more
+2026-03-26T22:12:50.583+01:00  INFO 38942 --- [vehicle-verification-api] [on(4)-127.0.0.1] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-03-26T22:12:50.585+01:00  INFO 38942 --- [vehicle-verification-api] [on(4)-127.0.0.1] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-26T22:12:50.588+01:00  INFO 38942 --- [vehicle-verification-api] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
