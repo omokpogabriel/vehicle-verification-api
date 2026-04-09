@@ -4,7 +4,6 @@ import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.AppConstant;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -14,19 +13,10 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
 import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.InputStream;
-import java.net.http.HttpClient;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
-import java.util.Collection;
+import java.io.StringReader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.io.StringReader;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class AskNiidService {
@@ -48,51 +38,7 @@ public class AskNiidService {
     private String searchType;
 
     public AskNiidService(RestClient.Builder restClientBuilder) {
-        this.restClient = restClientBuilder
-                .requestFactory(buildNiidAwareRequestFactory())
-                .build();
-    }
-
-    /**
-     * Builds a JdkClientHttpRequestFactory backed by an SSLContext that trusts
-     * the Sectigo chain used by niid.org — loaded from the bundled classpath cert.
-     * Falls back to the default factory if the cert cannot be loaded.
-     */
-    private static JdkClientHttpRequestFactory buildNiidAwareRequestFactory() {
-        try (InputStream certStream = AskNiidService.class
-                .getResourceAsStream("/certs/niid_full_chain.crt")) {
-
-            if (certStream == null) {
-                throw new IllegalStateException("niid_full_chain.crt not found on classpath");
-            }
-
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            Collection<? extends Certificate> certs = cf.generateCertificates(certStream);
-
-            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            keyStore.load(null, null);
-
-            AtomicInteger idx = new AtomicInteger(0);
-            for (Certificate cert : certs) {
-                keyStore.setCertificateEntry("niid-cert-" + idx.getAndIncrement(), cert);
-            }
-
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance(
-                    TrustManagerFactory.getDefaultAlgorithm());
-            tmf.init(keyStore);
-
-            SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, tmf.getTrustManagers(), null);
-
-            HttpClient httpClient = HttpClient.newBuilder()
-                    .sslContext(sslContext)
-                    .build();
-
-            return new JdkClientHttpRequestFactory(httpClient);
-
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to configure NIID SSL context: " + e.getMessage(), e);
-        }
+        this.restClient = restClientBuilder.build();
     }
 
     public ScrapingResult verifyLicensePlate(String plateNumber) {
