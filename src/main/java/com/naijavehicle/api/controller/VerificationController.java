@@ -32,9 +32,9 @@ public class VerificationController {
     @Cacheable(value = "verifications", key = "#plateNumber")
     public ResponseEntity<List<ScrapingResult>> verifyPlate(@PathVariable String plateNumber) {
         try {
-//            CompletableFuture<ScrapingResult> askNiidFuture = CompletableFuture.supplyAsync(() -> askNiidService.verifyLicensePlate(plateNumber))
-//                    .orTimeout(10, TimeUnit.SECONDS)
-//                    .exceptionally(ex -> AppError.exceptionFormat(plateNumber, AppConstant.VEHICLE_LICENSE));
+            CompletableFuture<ScrapingResult> askNiidFuture = CompletableFuture.supplyAsync(() -> askNiidService.verifyLicensePlate(plateNumber))
+                    .orTimeout(10, TimeUnit.SECONDS)
+                    .exceptionally(ex -> AppError.exceptionFormat(plateNumber, AppConstant.VEHICLE_LICENSE));
 
             CompletableFuture<ScrapingResult> autoRegFuture = CompletableFuture.supplyAsync(() -> autoRegService.verifyLicensePlate(plateNumber))
                     .orTimeout(10, TimeUnit.SECONDS)
@@ -50,20 +50,20 @@ public class VerificationController {
 
 
 
-            //CompletableFuture.allOf(askNiidFuture, autoRegFuture, payvisFuture, dvisFuture).join();
-            CompletableFuture.allOf(autoRegFuture, payvisFuture, dvisFuture).join();
+            CompletableFuture.allOf(askNiidFuture, autoRegFuture, payvisFuture, dvisFuture).join();
             ScrapingResult autoRegFutureResult = autoRegFuture.get();
 
-//            ScrapingResult vregFuture = new ScrapingResult();
-//            log.info("the response -> {}", autoRegFutureResult);
-//            if(!Objects.isNull(autoRegFutureResult.getAdditionalInfo()) ){
-//                vregFuture =  vregService.verifyLicensePlate(plateNumber,autoRegFutureResult.getAdditionalInfo().toString());
-//            }
+            ScrapingResult vregFuture = new ScrapingResult();
+            log.info("the response -> {}", autoRegFutureResult);
+            if(!Objects.isNull(autoRegFutureResult.getAdditionalInfo()) ){
+                vregFuture =  vregService.verifyLicensePlate(plateNumber,autoRegFutureResult.getAdditionalInfo().toString());
+            }
             List<ScrapingResult> results = Arrays.asList(
+                    askNiidFuture.get(),
                     autoRegFutureResult,
                     payvisFuture.get(),
-                    dvisFuture.get()
-                 //   vregFuture
+                    dvisFuture.get(),
+                    vregFuture
             );
 
 

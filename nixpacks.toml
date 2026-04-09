@@ -1,10 +1,10 @@
 [phases.setup]
-# Installs openssl and ensures the keytool is available
-aptPkgs = ['...your other packages...', 'ca-certificates']
+aptPkgs = ['ca-certificates']
 
 [phases.build]
-# This command imports the cert into the JVM's default trust store
 cmds = [
-    'echo "yes" | $JAVA_HOME/bin/keytool -import -trustcacerts -keystore $JAVA_HOME/lib/security/cacerts -storepass changeit -alias niid-cert -file niid.crt',
-    '...your normal build command (e.g., mvn clean install)...'
+    # This force-adds the cert to the system-wide Java truststore during build
+    'mkdir -p $JAVA_HOME/lib/security',
+    'keytool -import -trustcacerts -keystore $JAVA_HOME/lib/security/cacerts -storepass changeit -alias niid-api -file niid.crt -noprompt',
+    './mvnw clean install'
 ]
