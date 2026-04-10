@@ -53,17 +53,17 @@ public class VerificationController {
             CompletableFuture.allOf(askNiidFuture, autoRegFuture, payvisFuture, dvisFuture).join();
             ScrapingResult autoRegFutureResult = autoRegFuture.get();
 
-//            ScrapingResult vregFuture = new ScrapingResult();
-//            log.info("the response -> {}", autoRegFutureResult);
-//            if(!Objects.isNull(autoRegFutureResult.getAdditionalInfo()) ){
-//                vregFuture =  vregService.verifyLicensePlate(plateNumber,autoRegFutureResult.getAdditionalInfo().toString());
-//            }
+            ScrapingResult vregFuture = new ScrapingResult();
+            log.info("the response -> {}", autoRegFutureResult);
+            if(!Objects.isNull(autoRegFutureResult.getAdditionalInfo()) ){
+                vregFuture =  vregService.verifyLicensePlate(plateNumber,autoRegFutureResult.getAdditionalInfo().toString());
+            }
             List<ScrapingResult> results = Arrays.asList(
                     askNiidFuture.get(),
                     autoRegFutureResult,
                     payvisFuture.get(),
-                    dvisFuture.get()
-          //          vregFuture
+                    dvisFuture.get(),
+                    vregFuture
             );
 
 

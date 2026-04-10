@@ -3,13 +3,14 @@ package com.naijavehicle.api.service;
 import com.naijavehicle.api.dto.PayVisResponseDto;
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.AppConstant;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 @Service
+@Slf4j
 public class PayvisService {
-
     private static final String TARGET_URL = "https://payvis.ng/api/search?key=plate_number&value=";
     private final RestClient restClient;
 
@@ -24,14 +25,15 @@ public class PayvisService {
                     .accept(MediaType.APPLICATION_JSON)
                     .header("Referer", "https://payvis.ng/summary?sv=MUS549JR&st=pn")
                     .retrieve()
-                    .toEntity(PayVisResponseDto.class);
-
+                 // .body(String.class);
+             .toEntity(PayVisResponseDto.class);
+            log.info("the response jj->{} ->{}",jsonResponse.getBody(), TARGET_URL+plateNumber);
             if(jsonResponse.getStatusCode().is2xxSuccessful()){
                 var body = jsonResponse.getBody();
 
-                String status = body.compoundBills().length == 0
-                        &&  body.externalBills().length == 0
-                        &&  body.localBills().length == 0
+                String status = body.compoundBills().size() == 0
+                        &&  body.externalBills().size() == 0
+                        &&  body.localBills().size() == 0
                         ? "No Data Found" : "Data Found";
                 return new ScrapingResult(plateNumber, "Payvis", status, body, AppConstant.PAYVIS.name);
             }

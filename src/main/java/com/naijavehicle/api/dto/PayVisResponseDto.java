@@ -1,5 +1,7 @@
 package com.naijavehicle.api.dto;
 
 
-public record PayVisResponseDto(String[] localBills, String[] compoundBills, String[] externalBills) {
+import java.util.List;
+
+public record PayVisResponseDto(List localBills, List compoundBills, List externalBills) {
 }
