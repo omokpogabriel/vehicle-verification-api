@@ -7,10 +7,10 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ScrapingResult {
+public class ScrapingResult<T> {
     private String plateNumber;
     private String carMake;
     private String status;
-    private Object additionalInfo;
+    private T additionalInfo;
     private String type;
 }

@@ -4,12 +4,12 @@ import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.AppConstant;
 import org.springframework.stereotype.Service;
 
-@Service
+
 public class AppError {
 
-    public static ScrapingResult exceptionFormat(String plateNumber, AppConstant type){
-        return new ScrapingResult(plateNumber, "",
+    public static <T> ScrapingResult<T> exceptionFormat(String plateNumber, AppConstant type){
+        return new ScrapingResult<T> (plateNumber, "",
                 "Error: Timeout/Unavailable",
-                "", type.name);
+                null, type.name);
     }
 }

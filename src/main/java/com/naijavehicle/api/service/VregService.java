@@ -27,7 +27,7 @@ public class VregService {
 
         var scrapingResult = new ScrapingResult(
                 plateNumber, "", "Unabled to fetch data", "",
-                AppConstant.VEHICLE_LICENSE.name
+                AppConstant.VEHICLE_INSURANCE.name
         );
 
         var getChasis = Arrays.stream(askiInfo.split("(\s+\\|\s+)"))

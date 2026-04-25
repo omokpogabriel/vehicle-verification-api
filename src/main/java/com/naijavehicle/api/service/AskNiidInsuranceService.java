@@ -1,7 +1,10 @@
 package com.naijavehicle.api.service;
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.naijavehicle.api.dto.InsuranceInfoDTO;
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.AppConstant;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -9,6 +12,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import org.springframework.web.util.HtmlUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
@@ -19,7 +23,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-public class AskNiidService {
+@Slf4j
+public class AskNiidInsuranceService {
 
     private static final String TARGET_URL =
             "https://niid.org/NIA_API/Service.asmx/Vehicle_PolicyVerification";
@@ -37,7 +42,7 @@ public class AskNiidService {
     @Value("${askniid_search_type:Registration Number}")
     private String searchType;
 
-    public AskNiidService(RestClient.Builder restClientBuilder) {
+    public AskNiidInsuranceService(RestClient.Builder restClientBuilder) {
         this.restClient = restClientBuilder.build();
     }
 
@@ -61,10 +66,26 @@ public class AskNiidService {
                     .body(String.class);
 
             String soapResult = extractSoapString(responseXml);
-            return mapSoapInsuranceInfo(plateNumber, soapResult);
+            var result= parseInsuranceXml(soapResult);//(plateNumber, soapResult);
+
+            ScrapingResult scrapResult = new ScrapingResult();
+            scrapResult.setPlateNumber(plateNumber);
+            scrapResult.setCarMake(result.getMake());
+            scrapResult.setAdditionalInfo(result);
+            scrapResult.setStatus(result.getStatus());
+            scrapResult.setType(AppConstant.VEHICLE_INSURANCE.name());
+            return scrapResult;
         } catch (Exception e) {
-            return new ScrapingResult(plateNumber, "AskNiid", "Error: " + e.getMessage(), "Source: askniid.org","Vehicle License");
+            return new ScrapingResult<>(plateNumber, "Not found", "Error: " + e.getMessage(), "","Vehicle License");
         }
+    }
+
+    public InsuranceInfoDTO parseInsuranceXml(String xmlResult) throws Exception {
+        XmlMapper xmlMapper = new XmlMapper();
+
+        String cleanXml = xmlResult.replace("result -> ", "").trim();
+        String unescapedXml = HtmlUtils.htmlUnescape(cleanXml);
+        return xmlMapper.readValue(unescapedXml, InsuranceInfoDTO.class);
     }
 
     /**
@@ -83,7 +104,7 @@ public class AskNiidService {
 
     private static ScrapingResult mapSoapInsuranceInfo(String plateNumber, String soapResult) {
         var scrapResult =  new ScrapingResult(plateNumber, "Unknown", "unable to get record",
-                "", AppConstant.VEHICLE_LICENSE.name);
+                "", AppConstant.VEHICLE_INSURANCE.name);
 
         if (soapResult == null || soapResult.isBlank()) {
             return scrapResult;        }

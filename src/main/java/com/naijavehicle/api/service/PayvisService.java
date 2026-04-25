@@ -35,12 +35,12 @@ public class PayvisService {
                         &&  body.externalBills().size() == 0
                         &&  body.localBills().size() == 0
                         ? "No Data Found" : "Data Found";
-                return new ScrapingResult(plateNumber, "Payvis", status, body, AppConstant.PAYVIS.name);
+                return new ScrapingResult(plateNumber, "Payvis", status, body, AppConstant.PAY_VIS.name);
             }
 
             return new ScrapingResult(
                     plateNumber, "", "Unabled to fetch data", "",
-                    AppConstant.PAYVIS.name
+                    AppConstant.PAY_VIS.name
             );
         } catch (Exception e) {
             throw new RuntimeException("Payvis API failed: " + e.getMessage(), e);

@@ -56,7 +56,7 @@ java.util.concurrent.CompletionException: java.lang.RuntimeException: Failed to 
 	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)
 	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)
 Caused by: java.lang.RuntimeException: Failed to scrape AskNIID: HTTP error fetching URL. Status=404, URL=[https://askniid.org/VerifySingle.aspx]
-	at com.naijavehicle.api.service.AskNiidService.verifyLicensePlate(AskNiidService.java:78)
+	at com.naijavehicle.api.service.AskNiidInsuranceService.verifyLicensePlate(AskNiidService.java:78)
 	at com.naijavehicle.api.controller.VerificationController.lambda$verifyPlate$0(VerificationController.java:29)
 	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1768)
 	... 6 more
@@ -64,7 +64,7 @@ Caused by: org.jsoup.HttpStatusException: HTTP error fetching URL. Status=404, U
 	at org.jsoup.helper.HttpConnection$Response.execute(HttpConnection.java:879)
 	at org.jsoup.helper.HttpConnection$Response.execute(HttpConnection.java:818)
 	at org.jsoup.helper.HttpConnection.execute(HttpConnection.java:346)
-	at com.naijavehicle.api.service.AskNiidService.verifyLicensePlate(AskNiidService.java:43)
+	at com.naijavehicle.api.service.AskNiidInsuranceService.verifyLicensePlate(AskNiidService.java:43)
 	... 8 more
 2026-03-26T22:12:50.583+01:00  INFO 38942 --- [vehicle-verification-api] [on(4)-127.0.0.1] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
 2026-03-26T22:12:50.585+01:00  INFO 38942 --- [vehicle-verification-api] [on(4)-127.0.0.1] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete

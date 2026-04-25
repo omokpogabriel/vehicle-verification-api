@@ -1,6 +1,7 @@
 package com.naijavehicle.api.service;
 
 import com.naijavehicle.api.dto.ScrapingResult;
+import com.naijavehicle.api.dto.VehicleAdditionalInfoDTO;
 import com.naijavehicle.api.enums.AppConstant;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -55,7 +56,9 @@ public class AutoRegService {
                     details.append("Expiry: ").append(tds.get(3).text());
                 }
 
-                return new ScrapingResult(plateNumber, make, "Valid", details.toString(), AppConstant.AUTOREG.name);
+                return new ScrapingResult(plateNumber, make, "Valid",
+                        VehicleAdditionalInfoDTO.fromRawString(details.toString())
+                        , AppConstant.AUTO_REG.name);
             }
 
             String resultText = doc.select(".alert").text();
@@ -64,9 +67,9 @@ public class AutoRegService {
             }
 
             return new ScrapingResult(plateNumber, "AutoReg", resultText.isEmpty() ? "No Data Found" : resultText,
-                    "", AppConstant.AUTOREG.name);
+                    "", AppConstant.AUTO_REG.name);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to reach AutoReg API", e);
+            throw new RuntimeException("Failed to reach server API", e);
         }
     }
 }
