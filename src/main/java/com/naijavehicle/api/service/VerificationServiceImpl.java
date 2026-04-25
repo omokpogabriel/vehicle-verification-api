@@ -87,7 +87,7 @@ public class VerificationServiceImpl implements VerificationService {
                     .plateNumber(plateNumber)
                     .build();
 
-            vehicleReportRepository.saveReport(vehicleReport);
+           // vehicleReportRepository.saveReport(vehicleReport);
 
             return result;
         } catch (Exception e) {
