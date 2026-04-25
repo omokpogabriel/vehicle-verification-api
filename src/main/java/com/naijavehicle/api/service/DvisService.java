@@ -1,7 +1,7 @@
 package com.naijavehicle.api.service;
 
 import com.naijavehicle.api.dto.ScrapingResult;
-import com.naijavehicle.api.enums.AppConstant;
+import com.naijavehicle.api.enums.ChannelEnum;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -46,7 +46,7 @@ public class DvisService {
                 // Ignore parse errors, keep raw response
             }
 
-            return new ScrapingResult(plateNumber, "DVIS", readableStatus, "", AppConstant.DIVS.name);
+            return new ScrapingResult(plateNumber, "DVIS", readableStatus, "", ChannelEnum.DIVS.name);
         } catch (Exception e) {
             throw new RuntimeException("DVIS API failed: " + e.getMessage(), e);
         }

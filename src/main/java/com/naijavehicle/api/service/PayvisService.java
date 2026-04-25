@@ -2,7 +2,7 @@ package com.naijavehicle.api.service;
 
 import com.naijavehicle.api.dto.PayVisResponseDto;
 import com.naijavehicle.api.dto.ScrapingResult;
-import com.naijavehicle.api.enums.AppConstant;
+import com.naijavehicle.api.enums.ChannelEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -35,12 +35,12 @@ public class PayvisService {
                         &&  body.externalBills().size() == 0
                         &&  body.localBills().size() == 0
                         ? "No Data Found" : "Data Found";
-                return new ScrapingResult(plateNumber, "Payvis", status, body, AppConstant.PAY_VIS.name);
+                return new ScrapingResult(plateNumber, "Payvis", status, body, ChannelEnum.PAY_VIS.name);
             }
 
             return new ScrapingResult(
                     plateNumber, "", "Unabled to fetch data", "",
-                    AppConstant.PAY_VIS.name
+                    ChannelEnum.PAY_VIS.name
             );
         } catch (Exception e) {
             throw new RuntimeException("Payvis API failed: " + e.getMessage(), e);

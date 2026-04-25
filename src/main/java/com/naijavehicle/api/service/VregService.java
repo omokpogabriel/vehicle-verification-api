@@ -3,7 +3,7 @@ package com.naijavehicle.api.service;
 import ch.qos.logback.core.testUtil.RandomUtil;
 import com.naijavehicle.api.dto.CustomResponseDto;
 import com.naijavehicle.api.dto.ScrapingResult;
-import com.naijavehicle.api.enums.AppConstant;
+import com.naijavehicle.api.enums.ChannelEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,7 @@ public class VregService {
 
         var scrapingResult = new ScrapingResult(
                 plateNumber, "", "Unabled to fetch data", "",
-                AppConstant.VEHICLE_INSURANCE.name
+                ChannelEnum.VEHICLE_INSURANCE.name
         );
 
         var getChasis = Arrays.stream(askiInfo.split("(\s+\\|\s+)"))
@@ -61,7 +61,7 @@ public class VregService {
 
                     scrapingResult.setPlateNumber(vin);
                     return new ScrapingResult(vin, "status", String.valueOf(status)
-                            , ""+jsonResponse.getBody(), AppConstant.CUSTOM_REG.name);
+                            , ""+jsonResponse.getBody(), ChannelEnum.CUSTOM_REG.name);
                 }
             }
 

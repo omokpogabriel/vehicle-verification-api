@@ -3,7 +3,7 @@ package com.naijavehicle.api.service;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.naijavehicle.api.dto.InsuranceInfoDTO;
 import com.naijavehicle.api.dto.ScrapingResult;
-import com.naijavehicle.api.enums.AppConstant;
+import com.naijavehicle.api.enums.ChannelEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -73,7 +73,7 @@ public class AskNiidInsuranceService {
             scrapResult.setCarMake(result.getMake());
             scrapResult.setAdditionalInfo(result);
             scrapResult.setStatus(result.getStatus());
-            scrapResult.setType(AppConstant.VEHICLE_INSURANCE.name());
+            scrapResult.setType(ChannelEnum.VEHICLE_INSURANCE.name());
             return scrapResult;
         } catch (Exception e) {
             return new ScrapingResult<>(plateNumber, "Not found", "Error: " + e.getMessage(), "","Vehicle License");
@@ -104,7 +104,7 @@ public class AskNiidInsuranceService {
 
     private static ScrapingResult mapSoapInsuranceInfo(String plateNumber, String soapResult) {
         var scrapResult =  new ScrapingResult(plateNumber, "Unknown", "unable to get record",
-                "", AppConstant.VEHICLE_INSURANCE.name);
+                "", ChannelEnum.VEHICLE_INSURANCE.name);
 
         if (soapResult == null || soapResult.isBlank()) {
             return scrapResult;        }

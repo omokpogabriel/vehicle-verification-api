@@ -2,7 +2,7 @@ package com.naijavehicle.api.service;
 
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.dto.VehicleAdditionalInfoDTO;
-import com.naijavehicle.api.enums.AppConstant;
+import com.naijavehicle.api.enums.ChannelEnum;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.http.MediaType;
@@ -58,7 +58,7 @@ public class AutoRegService {
 
                 return new ScrapingResult(plateNumber, make, "Valid",
                         VehicleAdditionalInfoDTO.fromRawString(details.toString())
-                        , AppConstant.AUTO_REG.name);
+                        , ChannelEnum.AUTO_REG.name);
             }
 
             String resultText = doc.select(".alert").text();
@@ -67,7 +67,7 @@ public class AutoRegService {
             }
 
             return new ScrapingResult(plateNumber, "AutoReg", resultText.isEmpty() ? "No Data Found" : resultText,
-                    "", AppConstant.AUTO_REG.name);
+                    "", ChannelEnum.AUTO_REG.name);
         } catch (Exception e) {
             throw new RuntimeException("Failed to reach server API", e);
         }

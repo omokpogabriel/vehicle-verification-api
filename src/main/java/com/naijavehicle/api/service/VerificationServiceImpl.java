@@ -3,7 +3,7 @@ package com.naijavehicle.api.service;
 import com.naijavehicle.api.dto.InsuranceInfoDTO;
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.dto.VehicleAdditionalInfoDTO;
-import com.naijavehicle.api.enums.AppConstant;
+import com.naijavehicle.api.enums.ChannelEnum;
 import com.naijavehicle.api.exceptions.SystemMalFunctionException;
 import com.naijavehicle.api.models.VehicleReport;
 import com.naijavehicle.api.repositoryService.VehicleReportRepository;
@@ -46,22 +46,22 @@ public class VerificationServiceImpl implements VerificationService {
             var askNiidFuture = CompletableFuture.supplyAsync(() -> askNiidInsuranceService.verifyLicensePlate(plateNumber)
                             , customExecutor)
                     .orTimeout(10, TimeUnit.SECONDS)
-                    .exceptionally(ex -> AppError.<InsuranceInfoDTO>exceptionFormat(plateNumber, AppConstant.VEHICLE_INSURANCE));
+                    .exceptionally(ex -> AppError.<InsuranceInfoDTO>exceptionFormat(plateNumber, ChannelEnum.VEHICLE_INSURANCE));
 
             var autoRegFuture = CompletableFuture.supplyAsync(() -> autoRegService.verifyLicensePlate(plateNumber)
                             , customExecutor)
                     .orTimeout(10, TimeUnit.SECONDS)
-                    .exceptionally(ex -> AppError.<VehicleAdditionalInfoDTO>exceptionFormat(plateNumber, AppConstant.AUTO_REG));
+                    .exceptionally(ex -> AppError.<VehicleAdditionalInfoDTO>exceptionFormat(plateNumber, ChannelEnum.AUTO_REG));
 
 
             var payvisFuture = CompletableFuture.supplyAsync(() -> payvisService.verifyLicensePlate(plateNumber), customExecutor)
                     .orTimeout(10, TimeUnit.SECONDS)
-                    .exceptionally(ex -> AppError.<Object>exceptionFormat(plateNumber, AppConstant.PAY_VIS));
+                    .exceptionally(ex -> AppError.<Object>exceptionFormat(plateNumber, ChannelEnum.PAY_VIS));
 
             var dvisFuture = CompletableFuture.supplyAsync(
                             () -> dvisService.verifyLicensePlate(plateNumber), customExecutor)
                     .orTimeout(10, TimeUnit.SECONDS)
-                    .exceptionally(ex -> AppError.<Object>exceptionFormat(plateNumber, AppConstant.DIVS));
+                    .exceptionally(ex -> AppError.<Object>exceptionFormat(plateNumber, ChannelEnum.DIVS));
 
 
             CompletableFuture.allOf(askNiidFuture, autoRegFuture, payvisFuture, dvisFuture).join();

@@ -1,6 +1,8 @@
 package com.naijavehicle.api.controller;
 
+import com.naijavehicle.api.dto.ApiResponse;
 import com.naijavehicle.api.dto.ScrapingResult;
+import com.naijavehicle.api.enums.ResponseEnum;
 import com.naijavehicle.api.service.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +25,17 @@ public class VerificationController {
 
     @GetMapping("/plate/{plateNumber}")
     @Cacheable(value = "verifications", key = "#plateNumber")
-    public ResponseEntity<List<ScrapingResult<?>>> verifyPlate(@PathVariable String plateNumber,
+    public ResponseEntity<ApiResponse<?>> verifyPlate(@PathVariable String plateNumber,
                                                                HttpServletRequest request
     ) {
             var result = verificationService.verifyPlate(plateNumber, request);
-            return ResponseEntity.status(HttpStatus.OK).body(result);
+            return ResponseEntity.status(HttpStatus.OK).body(
+                 ApiResponse.builder()
+                         .status(ResponseEnum.SUCCESS.name())
+                         .message("Verification successful")
+                         .data(result)
+                         .build()
+            );
 
     }
 
