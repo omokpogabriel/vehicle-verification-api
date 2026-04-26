@@ -11,6 +11,11 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
+
 @Service
 public class AutoRegService {
 
@@ -55,9 +60,10 @@ public class AutoRegService {
                     details.append("Service: ").append(tds.get(0).text()).append(" | ");
                     details.append("Expiry: ").append(tds.get(3).text());
                 }
-
-                return new ScrapingResult(plateNumber, make, "Valid",
-                        VehicleAdditionalInfoDTO.fromRawString(details.toString())
+                 var detailInfo  = VehicleAdditionalInfoDTO.fromRawString(details.toString());
+                var status = checkExpiredDate(detailInfo.getExpiryDate()) ? "Valid" : "Expired";
+                return new ScrapingResult(plateNumber, make, status,
+                        detailInfo
                         , ChannelEnum.AUTO_REG.name);
             }
 
@@ -70,6 +76,29 @@ public class AutoRegService {
                     "", ChannelEnum.AUTO_REG.name);
         } catch (Exception e) {
             throw new RuntimeException("Failed to reach server API", e);
+        }
+    }
+
+    public boolean checkExpiredDate(String inputDate) {
+
+        // 1. Build a formatter that accepts multiple patterns
+        DateTimeFormatter flexibleFormatter = new DateTimeFormatterBuilder()
+                .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                .appendOptional(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                .appendOptional(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
+                .appendOptional(DateTimeFormatter.ofPattern("MM/dd/yyyy"))
+                .toFormatter();
+
+        try {
+            // 2. Parse the date using the flexible formatter
+            LocalDate expiryDate = LocalDate.parse(inputDate, flexibleFormatter);
+
+            // 3. Compare with "Now" (Current date: April 26, 2026)
+            return expiryDate.isBefore(LocalDate.now());
+
+        } catch (DateTimeParseException e) {
+            System.err.println("The date format provided is not supported: " + inputDate);
+            return false;
         }
     }
 }
