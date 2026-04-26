@@ -94,7 +94,7 @@ public class AutoRegService {
             LocalDate expiryDate = LocalDate.parse(inputDate, flexibleFormatter);
 
             // 3. Compare with "Now" (Current date: April 26, 2026)
-            return expiryDate.isBefore(LocalDate.now());
+            return expiryDate.isAfter(LocalDate.now());
 
         } catch (DateTimeParseException e) {
             System.err.println("The date format provided is not supported: " + inputDate);
