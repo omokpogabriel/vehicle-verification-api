@@ -24,7 +24,7 @@ public class VerificationController {
     private final VerificationService verificationService;
 
     @GetMapping("/plate/{plateNumber}")
-    @Cacheable(value = "verifications", key = "#plateNumber")
+   // @Cacheable(value = "verifications", key = "#plateNumber")
     public ResponseEntity<ApiResponse<?>> verifyPlate(@PathVariable String plateNumber,
                                                                HttpServletRequest request
     ) {
