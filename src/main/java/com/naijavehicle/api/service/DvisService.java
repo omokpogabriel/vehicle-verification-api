@@ -17,7 +17,7 @@ public class DvisService {
         this.restClient = restClientBuilder.build();
     }
 
-    public ScrapingResult verifyLicensePlate(String plateNumber) {
+    public ScrapingResult<String> verifyLicensePlate(String plateNumber) {
         String url = "https://dvis.lg.gov.ng/verify/api.php";
         try {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
@@ -46,7 +46,7 @@ public class DvisService {
                 // Ignore parse errors, keep raw response
             }
 
-            return new ScrapingResult(plateNumber, "DVIS", readableStatus, "", ChannelEnum.DIVS.name);
+            return new ScrapingResult<>(plateNumber, "DVIS", readableStatus, "", ChannelEnum.DIVS.name());
         } catch (Exception e) {
             throw new RuntimeException("DVIS API failed: " + e.getMessage(), e);
         }

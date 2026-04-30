@@ -26,6 +26,13 @@ public class VehicleReport {
     private String id;
 
     @Indexed(unique = true)
+    @Builder.Default
+    private String reportId = java.util.UUID.randomUUID().toString();
+
+    @Indexed
+    private String userId; // Connects report to User
+
+    @Indexed(unique = true)
     private String plateNumber;
 
     // The key is the source (e.g., "NIID"), the value is the result object

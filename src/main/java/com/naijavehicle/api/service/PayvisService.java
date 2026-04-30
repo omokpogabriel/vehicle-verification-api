@@ -18,7 +18,7 @@ public class PayvisService {
         this.restClient = restClientBuilder.build();
     }
 
-    public ScrapingResult verifyLicensePlate(String plateNumber) {
+    public ScrapingResult<PayVisResponseDto> verifyLicensePlate(String plateNumber) {
         try {
             var jsonResponse = restClient.get()
                     .uri(TARGET_URL+plateNumber)
@@ -35,12 +35,12 @@ public class PayvisService {
                         &&  body.externalBills().size() == 0
                         &&  body.localBills().size() == 0
                         ? "No Data Found" : "Data Found";
-                return new ScrapingResult(plateNumber, "Payvis", status, body, ChannelEnum.PAY_VIS.name);
+                return new ScrapingResult<>(plateNumber, "Payvis", status, body, ChannelEnum.PAY_VIS.name());
             }
 
-            return new ScrapingResult(
-                    plateNumber, "", "Unabled to fetch data", "",
-                    ChannelEnum.PAY_VIS.name
+            return new ScrapingResult<>(
+                    plateNumber, "", "Unabled to fetch data", null,
+                    ChannelEnum.PAY_VIS.name()
             );
         } catch (Exception e) {
             throw new RuntimeException("Payvis API failed: " + e.getMessage(), e);

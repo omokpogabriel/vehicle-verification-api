@@ -8,3 +8,6 @@ cmds = [
     'keytool -import -trustcacerts -keystore $JAVA_HOME/lib/security/cacerts -storepass changeit -alias niid-api -file niid.crt -noprompt',
     './mvnw clean install'
 ]
+
+[variables]
+NIXPACKS_JDK_VERSION = "21"

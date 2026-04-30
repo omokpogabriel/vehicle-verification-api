@@ -13,8 +13,7 @@ public class AppConfig {
 
     @Bean("customThreadPool")
     public AsyncTaskExecutor customThreadPool() {
-        // Wrapping the Virtual Thread Executor in a Spring Adapter
-        // allows it to integrate better with Spring's Task execution framework.
+        // Java 21 virtual threads — lightweight, no need to size a pool
         return new TaskExecutorAdapter(Executors.newVirtualThreadPerTaskExecutor());
     }
 }

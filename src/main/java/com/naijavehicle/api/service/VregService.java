@@ -23,11 +23,11 @@ public class VregService {
         this.restClient = restClientBuilder.build();
     }
 
-    public ScrapingResult verifyLicensePlate(String plateNumber, String askiInfo) {
+    public ScrapingResult<String> verifyLicensePlate(String plateNumber, String askiInfo) {
 
-        var scrapingResult = new ScrapingResult(
+        var scrapingResult = new ScrapingResult<String>(
                 plateNumber, "", "Unabled to fetch data", "",
-                ChannelEnum.VEHICLE_INSURANCE.name
+                ChannelEnum.VEHICLE_INSURANCE.name()
         );
 
         var getChasis = Arrays.stream(askiInfo.split("(\s+\\|\s+)"))
@@ -60,8 +60,8 @@ public class VregService {
                 if(status){
 
                     scrapingResult.setPlateNumber(vin);
-                    return new ScrapingResult(vin, "status", String.valueOf(status)
-                            , ""+jsonResponse.getBody(), ChannelEnum.CUSTOM_REG.name);
+                    return new ScrapingResult<String>(vin, "status", String.valueOf(status)
+                            , ""+jsonResponse.getBody(), ChannelEnum.CUSTOM_REG.name());
                 }
             }
 

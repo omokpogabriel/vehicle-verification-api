@@ -27,7 +27,7 @@ public class AutoRegService {
         this.restClient = restClientBuilder.build();
     }
 
-    public ScrapingResult verifyLicensePlate(String plateNumber) {
+    public ScrapingResult<VehicleAdditionalInfoDTO> verifyLicensePlate(String plateNumber) {
         try {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
             formData.add("regNumber", plateNumber);
@@ -62,9 +62,9 @@ public class AutoRegService {
                 }
                  var detailInfo  = VehicleAdditionalInfoDTO.fromRawString(details.toString());
                 var status = checkExpiredDate(detailInfo.getExpiryDate()) ? "Valid" : "Expired";
-                return new ScrapingResult(plateNumber, make, status,
-                        detailInfo
-                        , ChannelEnum.AUTO_REG.name);
+            return new ScrapingResult<VehicleAdditionalInfoDTO>(plateNumber, make, status,
+                        detailInfo,
+                        ChannelEnum.AUTO_REG.name());
             }
 
             String resultText = doc.select(".alert").text();
@@ -72,8 +72,8 @@ public class AutoRegService {
                 resultText = doc.body().text().length() > 100 ? doc.body().text().substring(0, 100) + "..." : doc.body().text();
             }
 
-            return new ScrapingResult(plateNumber, "AutoReg", resultText.isEmpty() ? "No Data Found" : resultText,
-                    "", ChannelEnum.AUTO_REG.name);
+            return new ScrapingResult<VehicleAdditionalInfoDTO>(plateNumber, "AutoReg", resultText.isEmpty() ? "No Data Found" : resultText,
+                    null, ChannelEnum.AUTO_REG.name());
         } catch (Exception e) {
             throw new RuntimeException("Failed to reach server API", e);
         }

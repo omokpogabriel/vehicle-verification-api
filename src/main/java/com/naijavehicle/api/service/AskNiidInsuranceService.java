@@ -46,7 +46,7 @@ public class AskNiidInsuranceService {
         this.restClient = restClientBuilder.build();
     }
 
-    public ScrapingResult verifyLicensePlate(String plateNumber) {
+    public ScrapingResult<InsuranceInfoDTO> verifyLicensePlate(String plateNumber) {
         try {
             if (username == null || username.isBlank() || password == null || password.isBlank()) {
                 throw new IllegalStateException("Missing NIID credentials in application.properties (askniid_insurance_user/askniid_insurance_pass).");
@@ -68,7 +68,7 @@ public class AskNiidInsuranceService {
             String soapResult = extractSoapString(responseXml);
             var result= parseInsuranceXml(soapResult);//(plateNumber, soapResult);
 
-            ScrapingResult scrapResult = new ScrapingResult();
+            ScrapingResult<InsuranceInfoDTO> scrapResult = new ScrapingResult<>();
             scrapResult.setPlateNumber(plateNumber);
             scrapResult.setCarMake(result.getMake());
             scrapResult.setAdditionalInfo(result);
@@ -76,7 +76,7 @@ public class AskNiidInsuranceService {
             scrapResult.setType(ChannelEnum.VEHICLE_INSURANCE.name());
             return scrapResult;
         } catch (Exception e) {
-            return new ScrapingResult<>(plateNumber, "Not found", "Error: " + e.getMessage(), "","Vehicle License");
+            return new ScrapingResult<InsuranceInfoDTO>(plateNumber, "Not found", "Error: " + e.getMessage(), null, "Vehicle License");
         }
     }
 
@@ -102,9 +102,9 @@ public class AskNiidInsuranceService {
         return xml.trim();
     }
 
-    private static ScrapingResult mapSoapInsuranceInfo(String plateNumber, String soapResult) {
-        var scrapResult =  new ScrapingResult(plateNumber, "Unknown", "unable to get record",
-                "", ChannelEnum.VEHICLE_INSURANCE.name);
+    private static ScrapingResult<String> mapSoapInsuranceInfo(String plateNumber, String soapResult) {
+        var scrapResult = new ScrapingResult<String>(plateNumber, "Unknown", "unable to get record",
+                "", ChannelEnum.VEHICLE_INSURANCE.name());
 
         if (soapResult == null || soapResult.isBlank()) {
             return scrapResult;        }
