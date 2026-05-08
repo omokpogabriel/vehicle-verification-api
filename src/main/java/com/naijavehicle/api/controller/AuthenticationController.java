@@ -6,6 +6,7 @@ import com.naijavehicle.api.models.User;
 import com.naijavehicle.api.repositoryService.LoginDetailsRepository;
 import com.naijavehicle.api.repositoryService.UserRepository;
 import com.naijavehicle.api.security.JwtTokenProvider;
+import com.naijavehicle.api.service.GoogleAuthService;
 import com.naijavehicle.api.utils.GeneralUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -36,6 +37,7 @@ public class AuthenticationController {
     private final UserRepository userRepository;
     private final LoginDetailsRepository loginDetailsRepository;
     private final PasswordEncoder passwordEncoder;
+    private final GoogleAuthService googleAuthService;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 15;
@@ -252,6 +254,69 @@ public class AuthenticationController {
                     .build());
 
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+    }
+
+    @PostMapping("/login/google")
+    public ResponseEntity<JwtAuthenticationResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request, HttpServletRequest httpRequest) {
+        GoogleAuthService.GoogleUserInfo googleUser = googleAuthService.verifyIdToken(request.getIdToken());
+        if (googleUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        try {
+            User user = userRepository.findByGoogleId(googleUser.sub()).orElse(null);
+            if (user == null) {
+                user = userRepository.findByEmail(googleUser.email()).orElse(null);
+            }
+
+            if (user == null) {
+                user = User.builder()
+                        .username(googleUser.email())
+                        .email(googleUser.email())
+                        .googleId(googleUser.sub())
+                        .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                        .build();
+            } else if (user.getGoogleId() == null) {
+                user.setGoogleId(googleUser.sub());
+            }
+            userRepository.save(user);
+
+            String accessToken = tokenProvider.generateToken(user.getUsername(), user.getTokenVersion());
+            String refreshToken = tokenProvider.generateRefreshToken(user.getUsername());
+
+            JwtAuthenticationResponse response = JwtAuthenticationResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(jwtExpiration)
+                    .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
+                    .build();
+
+            log.info("User {} logged in via Google", googleUser.email());
+
+            loginDetailsRepository.save(LoginDetails.builder()
+                    .username(user.getUsername())
+                    .ipAddress(GeneralUtils.getIpAddress(httpRequest))
+                    .location(sanitizeHeader(httpRequest.getHeader("location")))
+                    .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
+                    .status("SUCCESS")
+                    .build());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Google login failed for {}: {}", googleUser.email(), e.getMessage());
+
+            loginDetailsRepository.save(LoginDetails.builder()
+                    .username(googleUser.email())
+                    .ipAddress(GeneralUtils.getIpAddress(httpRequest))
+                    .location(sanitizeHeader(httpRequest.getHeader("location")))
+                    .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
+                    .status("FAILURE")
+                    .failureReason(e.getMessage())
+                    .build());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

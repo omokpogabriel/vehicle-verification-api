@@ -37,6 +37,8 @@ public class User {
 
     private String appInstallationId;
 
+    private String googleId;
+
     private String biometricToken;
 
     private String resetToken;
