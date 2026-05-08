@@ -2,11 +2,14 @@ package com.naijavehicle.api.exceptions;
 
 import com.naijavehicle.api.dto.ApiResponse;
 import com.naijavehicle.api.enums.ResponseEnum;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
@@ -14,6 +17,20 @@ import java.util.concurrent.TimeoutException;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Object> handleValidationErrors(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new LinkedHashMap<>();
+        for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
+            errors.put(fieldError.getField(), fieldError.getDefaultMessage());
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.builder()
+                        .status(ResponseEnum.FAILED.name())
+                        .message("Validation failed")
+                        .data(errors)
+                        .build());
+    }
 
     @ExceptionHandler({TimeoutException.class, CompletionException.class})
     public ResponseEntity<Object> handleTimeout(Exception ex) {
@@ -50,8 +67,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Object> handleGeneralError(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.builder()
-                        .status(ResponseEnum.SUCCESS.name())
-                        .message("Something went through, we are working on it")
+                        .status(ResponseEnum.FAILED.name())
+                        .message("Something went wrong, we are working on it")
                         .build()
                 );
     }

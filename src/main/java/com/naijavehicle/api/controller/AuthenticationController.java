@@ -1,11 +1,6 @@
 package com.naijavehicle.api.controller;
 
-import com.naijavehicle.api.dto.JwtAuthenticationResponse;
-import com.naijavehicle.api.dto.LoginRequest;
-import com.naijavehicle.api.dto.ChangePasswordRequest;
-import com.naijavehicle.api.dto.ResetPasswordRequest;
-import com.naijavehicle.api.dto.ResetPasswordConfirmRequest;
-import com.naijavehicle.api.dto.BiometricLoginRequest;
+import com.naijavehicle.api.dto.*;
 import com.naijavehicle.api.models.LoginDetails;
 import com.naijavehicle.api.models.User;
 import com.naijavehicle.api.repositoryService.LoginDetailsRepository;
@@ -13,11 +8,11 @@ import com.naijavehicle.api.repositoryService.UserRepository;
 import com.naijavehicle.api.security.JwtTokenProvider;
 import com.naijavehicle.api.utils.GeneralUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,11 +21,9 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.UUID;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -44,11 +37,21 @@ public class AuthenticationController {
     private final LoginDetailsRepository loginDetailsRepository;
     private final PasswordEncoder passwordEncoder;
 
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final int LOCKOUT_MINUTES = 15;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
 
     @PostMapping("/login")
-    public ResponseEntity<JwtAuthenticationResponse> login(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+    public ResponseEntity<JwtAuthenticationResponse> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+        long recentFailures = loginDetailsRepository.countByUsernameAndStatusAndTimestampAfter(
+                loginRequest.getUsername(), "FAILURE", LocalDateTime.now().minusMinutes(LOCKOUT_MINUTES));
+        if (recentFailures >= MAX_FAILED_ATTEMPTS) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+        }
+
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -57,16 +60,17 @@ public class AuthenticationController {
                     )
             );
 
-            String accessToken = tokenProvider.generateToken(authentication.getName());
-            String refreshToken = tokenProvider.generateRefreshToken(authentication.getName());
-
             User user = userRepository.findByUsername(loginRequest.getUsername()).orElse(null);
-            
+
             String rawBiometricToken = UUID.randomUUID().toString();
             if (user != null) {
                 user.setBiometricToken(passwordEncoder.encode(rawBiometricToken));
                 userRepository.save(user);
             }
+
+            int tokenVersion = user != null ? user.getTokenVersion() : 0;
+            String accessToken = tokenProvider.generateToken(authentication.getName(), tokenVersion);
+            String refreshToken = tokenProvider.generateRefreshToken(authentication.getName());
 
             JwtAuthenticationResponse response = JwtAuthenticationResponse.builder()
                     .accessToken(accessToken)
@@ -77,31 +81,29 @@ public class AuthenticationController {
                     .biometricToken(rawBiometricToken)
                     .build();
 
-            log.info("User {} logged in successfully", loginRequest.getUsername());
-            
-            // Track successful login
+            log.info("User {} logged in successfully", loginRequest.getUsername().replaceAll("[\\r\\n]", ""));
+
             loginDetailsRepository.save(LoginDetails.builder()
                     .username(loginRequest.getUsername())
                     .ipAddress(GeneralUtils.getIpAddress(request))
-                    .location(request.getHeader("location"))
+                    .location(sanitizeHeader(request.getHeader("location")))
                     .appInstallationId(GeneralUtils.getAppInstallationId(request))
                     .status("SUCCESS")
                     .build());
 
             return ResponseEntity.ok(response);
         } catch (AuthenticationException e) {
-            log.error("Authentication failed for user: {}", loginRequest.getUsername());
-            
-            // Track failed login
+            log.error("Authentication failed for user: {}", loginRequest.getUsername().replaceAll("[\\r\\n]", ""));
+
             loginDetailsRepository.save(LoginDetails.builder()
                     .username(loginRequest.getUsername())
                     .ipAddress(GeneralUtils.getIpAddress(request))
-                    .location(request.getHeader("location"))
+                    .location(sanitizeHeader(request.getHeader("location")))
                     .appInstallationId(GeneralUtils.getAppInstallationId(request))
                     .status("FAILURE")
                     .failureReason(e.getMessage())
                     .build());
-                    
+
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
@@ -119,8 +121,14 @@ public class AuthenticationController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
 
+            if (!"refresh".equals(tokenProvider.getTokenType(refreshToken))) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
             String username = tokenProvider.getUsernameFromToken(refreshToken);
-            String newAccessToken = tokenProvider.generateToken(username);
+            User user = userRepository.findByUsername(username).orElse(null);
+            int tokenVersion = user != null ? user.getTokenVersion() : 0;
+            String newAccessToken = tokenProvider.generateToken(username, tokenVersion);
 
             JwtAuthenticationResponse response = JwtAuthenticationResponse.builder()
                     .accessToken(newAccessToken)
@@ -138,7 +146,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request, Authentication authentication) {
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request, Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -149,35 +157,35 @@ public class AuthenticationController {
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
         return ResponseEntity.ok("{\"message\": \"Password changed successfully\"}");
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<?> requestPasswordReset(@RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<?> requestPasswordReset(@Valid @RequestBody ResetPasswordRequest request) {
         User user = userRepository.findByUsername(request.getUsername()).orElse(null);
         if (user != null) {
-            String resetToken = String.format("%06d", new java.util.Random().nextInt(999999)); // 6-digit OTP
+            String resetToken = String.format("%06d", SECURE_RANDOM.nextInt(999999));
             user.setResetToken(passwordEncoder.encode(resetToken));
             user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
             userRepository.save(user);
-            
+
             // TODO: In production, send this via Email/SMS. For now, log it.
             log.info("PASSWORD RESET TOKEN FOR {}: {}", user.getUsername(), resetToken);
         }
-        
-        // Always return OK to prevent username enumeration
+
         return ResponseEntity.ok("{\"message\": \"If the username exists, a reset code has been sent.\"}");
     }
 
     @PostMapping("/reset-password/confirm")
-    public ResponseEntity<?> confirmPasswordReset(@RequestBody ResetPasswordConfirmRequest request) {
+    public ResponseEntity<?> confirmPasswordReset(@Valid @RequestBody ResetPasswordConfirmRequest request) {
         User user = userRepository.findByUsername(request.getUsername()).orElse(null);
-        
+
         if (user == null || user.getResetToken() == null) {
             return ResponseEntity.badRequest().body("{\"error\": \"Invalid or expired reset token\"}");
         }
-        
+
         if (user.getResetTokenExpiry() != null && LocalDateTime.now().isAfter(user.getResetTokenExpiry())) {
             return ResponseEntity.badRequest().body("{\"error\": \"Reset token has expired\"}");
         }
@@ -186,7 +194,6 @@ public class AuthenticationController {
             return ResponseEntity.badRequest().body("{\"error\": \"Invalid reset token\"}");
         }
 
-        // Token is valid, reset password
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
@@ -196,22 +203,21 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login/biometric")
-    public ResponseEntity<JwtAuthenticationResponse> biometricLogin(@RequestBody BiometricLoginRequest requestBody, HttpServletRequest request) {
+    public ResponseEntity<JwtAuthenticationResponse> biometricLogin(@Valid @RequestBody BiometricLoginRequest requestBody, HttpServletRequest request) {
         try {
             User user = userRepository.findByUsername(requestBody.getUsername()).orElse(null);
-            
+
             if (user == null || user.getBiometricToken() == null || !passwordEncoder.matches(requestBody.getBiometricToken(), user.getBiometricToken())) {
-                throw new AuthenticationException("Invalid biometric token") {};
+                throw new AuthenticationException("Invalid biometric token") {
+                };
             }
 
-            // Generate new session tokens
-            String accessToken = tokenProvider.generateToken(user.getUsername());
-            String refreshToken = tokenProvider.generateRefreshToken(user.getUsername());
-            
-            // Rotate biometric token for security
             String newBiometricToken = UUID.randomUUID().toString();
             user.setBiometricToken(passwordEncoder.encode(newBiometricToken));
             userRepository.save(user);
+
+            String accessToken = tokenProvider.generateToken(user.getUsername(), user.getTokenVersion());
+            String refreshToken = tokenProvider.generateRefreshToken(user.getUsername());
 
             JwtAuthenticationResponse response = JwtAuthenticationResponse.builder()
                     .accessToken(accessToken)
@@ -222,31 +228,36 @@ public class AuthenticationController {
                     .biometricToken(newBiometricToken)
                     .build();
 
-            log.info("User {} logged in successfully via biometrics", user.getUsername());
-            
+            log.info("User {} logged in successfully via biometrics", user.getUsername().replaceAll("[\\r\\n]", ""));
+
             loginDetailsRepository.save(LoginDetails.builder()
                     .username(user.getUsername())
                     .ipAddress(GeneralUtils.getIpAddress(request))
-                    .location(request.getHeader("location"))
+                    .location(sanitizeHeader(request.getHeader("location")))
                     .appInstallationId(GeneralUtils.getAppInstallationId(request))
                     .status("SUCCESS")
                     .build());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Biometric Authentication failed for user: {}", requestBody.getUsername());
-            
+            log.error("Biometric Authentication failed for user: {}", requestBody.getUsername().replaceAll("[\\r\\n]", ""));
+
             loginDetailsRepository.save(LoginDetails.builder()
                     .username(requestBody.getUsername())
                     .ipAddress(GeneralUtils.getIpAddress(request))
-                    .location(request.getHeader("location"))
+                    .location(sanitizeHeader(request.getHeader("location")))
                     .appInstallationId(GeneralUtils.getAppInstallationId(request))
                     .status("FAILURE")
                     .failureReason(e.getMessage())
                     .build());
-                    
+
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
-}
 
+    private String sanitizeHeader(String value) {
+        if (value == null) return null;
+        String sanitized = value.replaceAll("[\\r\\n]", "");
+        return sanitized.length() > 200 ? sanitized.substring(0, 200) : sanitized;
+    }
+}

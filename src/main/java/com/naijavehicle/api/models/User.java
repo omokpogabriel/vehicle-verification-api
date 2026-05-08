@@ -43,5 +43,8 @@ public class User {
 
     private java.time.LocalDateTime resetTokenExpiry;
 
+    @Builder.Default
+    private int tokenVersion = 0;
+
     private Set<String> roles;
 }

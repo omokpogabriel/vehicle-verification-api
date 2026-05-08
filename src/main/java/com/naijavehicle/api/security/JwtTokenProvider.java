@@ -25,24 +25,15 @@ public class JwtTokenProvider {
     @Value("${jwt.refreshExpiration}")
     private long jwtRefreshExpirationMs;
 
-    /**
-     * Generate JWT token
-     */
-    public String generateToken(String username) {
-        return buildToken(username, jwtExpirationMs);
+    public String generateToken(String username, int tokenVersion) {
+        return buildToken(username, jwtExpirationMs, "access", tokenVersion);
     }
 
-    /**
-     * Generate refresh token
-     */
     public String generateRefreshToken(String username) {
-        return buildToken(username, jwtRefreshExpirationMs);
+        return buildToken(username, jwtRefreshExpirationMs, "refresh", 0);
     }
 
-    /**
-     * Build JWT token using jjwt 0.12.x API
-     */
-    private String buildToken(String username, long expirationMs) {
+    private String buildToken(String username, long expirationMs, String type, int tokenVersion) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
@@ -50,36 +41,43 @@ public class JwtTokenProvider {
                 .subject(username)
                 .issuedAt(now)
                 .expiration(expiryDate)
+                .claim("type", type)
+                .claim("tokenVersion", tokenVersion)
                 .signWith(getSigningKey())
                 .compact();
     }
 
-    /**
-     * Extract username from token using jjwt 0.12.x API
-     */
     public String getUsernameFromToken(String token) {
         try {
-            return Jwts.parser()
-                    .verifyWith(getSigningKey())
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload()
-                    .getSubject();
+            return getClaims(token).getSubject();
         } catch (JwtException | IllegalArgumentException e) {
             log.error("Error extracting username from token", e);
             return null;
         }
     }
 
-    /**
-     * Validate JWT token using jjwt 0.12.x API
-     */
+    public String getTokenType(String token) {
+        try {
+            return getClaims(token).get("type", String.class);
+        } catch (JwtException | IllegalArgumentException e) {
+            log.error("Error extracting token type", e);
+            return null;
+        }
+    }
+
+    public int getTokenVersion(String token) {
+        try {
+            Integer version = getClaims(token).get("tokenVersion", Integer.class);
+            return version != null ? version : 0;
+        } catch (JwtException | IllegalArgumentException e) {
+            log.error("Error extracting token version", e);
+            return -1;
+        }
+    }
+
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
-                    .verifyWith(getSigningKey())
-                    .build()
-                    .parseSignedClaims(token);
+            getClaims(token);
             return true;
         } catch (MalformedJwtException e) {
             log.error("Invalid JWT token: {}", e.getMessage());
@@ -93,9 +91,14 @@ public class JwtTokenProvider {
         return false;
     }
 
-    /**
-     * Get HMAC-SHA signing key (jjwt 0.12.x uses SecretKey, not raw bytes)
-     */
+    private Claims getClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
     private SecretKey getSigningKey() {
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
