@@ -8,11 +8,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 @Service
 @Slf4j
 public class GoogleAuthService {
+
+    private static final List<String> VALID_ISSUERS =
+            Arrays.asList("accounts.google.com", "https://accounts.google.com");
 
     private final GoogleIdTokenVerifier verifier;
 
@@ -20,6 +25,7 @@ public class GoogleAuthService {
         this.verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(), GsonFactory.getDefaultInstance())
                 .setAudience(Collections.singletonList(googleClientId))
+                .setIssuers(VALID_ISSUERS)
                 .build();
     }
 
