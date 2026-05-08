@@ -2,6 +2,7 @@ package com.naijavehicle.api.config;
 
 import com.naijavehicle.api.security.HeaderValidationFilter;
 import com.naijavehicle.api.security.JwtAuthenticationFilter;
+import com.naijavehicle.api.security.RequestLoggingFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +27,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final HeaderValidationFilter headerValidationFilter;
+    private final RequestLoggingFilter requestLoggingFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -62,7 +64,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(headerValidationFilter, JwtAuthenticationFilter.class);
+                .addFilterBefore(headerValidationFilter, JwtAuthenticationFilter.class)
+                .addFilterBefore(requestLoggingFilter, HeaderValidationFilter.class);
 
         return http.build();
     }

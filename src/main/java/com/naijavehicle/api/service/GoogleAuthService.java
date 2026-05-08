@@ -1,50 +1,44 @@
 package com.naijavehicle.api.service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 
-import java.util.Map;
+import java.util.Collections;
 
 @Service
 @Slf4j
 public class GoogleAuthService {
 
-    @Value("${google.client-id}")
-    private String googleClientId;
+    private final GoogleIdTokenVerifier verifier;
 
-    private final RestClient restClient = RestClient.create();
+    public GoogleAuthService(@Value("${google.client-id}") String googleClientId) {
+        this.verifier = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(), GsonFactory.getDefaultInstance())
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+    }
 
-    public GoogleUserInfo verifyIdToken(String idToken) {
+    public GoogleUserInfo verifyIdToken(String idTokenString) {
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = restClient.get()
-                    .uri("https://oauth2.googleapis.com/tokeninfo?id_token={token}", idToken)
-                    .retrieve()
-                    .body(Map.class);
-
-            if (response == null) return null;
-
-            String aud = (String) response.get("aud");
-            String emailVerified = (String) response.get("email_verified");
-
-            if (!googleClientId.equals(aud)) {
-                log.warn("Google token audience mismatch: expected {}, got {}", googleClientId, aud);
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken == null) {
+                log.warn("Google ID token verification failed — invalid, expired, or wrong audience");
                 return null;
             }
 
-            if (!"true".equals(emailVerified)) {
-                log.warn("Google account email not verified for sub: {}", response.get("sub"));
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
+                log.warn("Google account email not verified for sub: {}", payload.getSubject());
                 return null;
             }
 
-            String name = response.get("name") != null ? (String) response.get("name") : "";
-            return new GoogleUserInfo(
-                    (String) response.get("sub"),
-                    (String) response.get("email"),
-                    name
-            );
+            String name = (String) payload.get("name");
+            return new GoogleUserInfo(payload.getSubject(), payload.getEmail(), name != null ? name : "");
         } catch (Exception e) {
             log.error("Failed to verify Google ID token: {}", e.getMessage());
             return null;

@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -45,6 +46,84 @@ public class AuthenticationController {
 
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
+
+        log.info(" the payload -> {}", request);
+
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("{\"error\": \"Email already registered\"}");
+        }
+
+        User user = User.builder()
+                .username(request.getEmail())
+                .fullName(request.getFullName())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .email(request.getEmail())
+                .phone(request.getPhone())
+                .ipAddress(GeneralUtils.getIpAddress(httpRequest))
+                .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
+                .roles(Set.of("USER"))
+                .build();
+        log.info(" the payload -> {}", request);
+        userRepository.save(user);
+
+        String accessToken = tokenProvider.generateToken(user.getUsername(), user.getTokenVersion());
+        String refreshToken = tokenProvider.generateRefreshToken(user.getUsername());
+
+        log.info("New user registered: {}", request.getEmail().replaceAll("[\\r\\n]", ""));
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                JwtAuthenticationResponse.builder()
+                        .accessToken(accessToken)
+                        .refreshToken(refreshToken)
+                        .tokenType("Bearer")
+                        .expiresIn(jwtExpiration)
+                        .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
+                        .build()
+        );
+    }
+
+    @PostMapping("/register/google")
+    public ResponseEntity<?> registerWithGoogle(@Valid @RequestBody GoogleLoginRequest request, HttpServletRequest httpRequest) {
+        GoogleAuthService.GoogleUserInfo googleUser = googleAuthService.verifyIdToken(request.getIdToken());
+        if (googleUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("{\"error\": \"Invalid or expired Google token\"}");
+        }
+
+        if (userRepository.findByEmail(googleUser.email()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("{\"error\": \"Email already registered\"}");
+        }
+
+        User user = User.builder()
+                .username(googleUser.email())
+                .fullName(googleUser.name())
+                .email(googleUser.email())
+                .googleId(googleUser.sub())
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .ipAddress(GeneralUtils.getIpAddress(httpRequest))
+                .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
+                .roles(Set.of("USER"))
+                .build();
+
+        userRepository.save(user);
+
+        String accessToken = tokenProvider.generateToken(user.getUsername(), user.getTokenVersion());
+        String refreshToken = tokenProvider.generateRefreshToken(user.getUsername());
+
+        log.info("New user registered via Google: {}", googleUser.email().replaceAll("[\\r\\n]", ""));
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                JwtAuthenticationResponse.builder()
+                        .accessToken(accessToken)
+                        .refreshToken(refreshToken)
+                        .tokenType("Bearer")
+                        .expiresIn(jwtExpiration)
+                        .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
+                        .build()
+        );
+    }
 
     @PostMapping("/login")
     public ResponseEntity<JwtAuthenticationResponse> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
@@ -273,9 +352,11 @@ public class AuthenticationController {
             if (user == null) {
                 user = User.builder()
                         .username(googleUser.email())
+                        .fullName(googleUser.name())
                         .email(googleUser.email())
                         .googleId(googleUser.sub())
                         .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                        .roles(Set.of("USER"))
                         .build();
             } else if (user.getGoogleId() == null) {
                 user.setGoogleId(googleUser.sub());

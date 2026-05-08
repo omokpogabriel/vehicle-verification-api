@@ -53,6 +53,93 @@ public class AuthenticationControllerTest {
     }
 
     // -------------------------------------------------------------------------
+    // REGISTER
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testRegisterSuccess() {
+        RegisterRequest request = new RegisterRequest("John Doe", "new@example.com", "08012345678", "password123");
+        HttpServletRequest mockRequest = Mockito.mock(HttpServletRequest.class);
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("password123")).thenReturn("encodedPassword");
+        when(userRepository.save(any())).thenReturn(testUser);
+        when(tokenProvider.generateToken(any(), anyInt())).thenReturn("mockAccessToken");
+        when(tokenProvider.generateRefreshToken(any())).thenReturn("mockRefreshToken");
+
+        ResponseEntity<?> response = authenticationController.register(request, mockRequest);
+
+        assertEquals(201, response.getStatusCode().value());
+        verify(userRepository, times(1)).save(any());
+    }
+
+    @Test
+    void testRegisterFails_DuplicateEmail() {
+        RegisterRequest request = new RegisterRequest("John Doe", "testuser@example.com", "08012345678", "password123");
+        HttpServletRequest mockRequest = Mockito.mock(HttpServletRequest.class);
+
+        when(userRepository.findByEmail("testuser@example.com")).thenReturn(Optional.of(testUser));
+
+        ResponseEntity<?> response = authenticationController.register(request, mockRequest);
+
+        assertEquals(409, response.getStatusCode().value());
+        verify(userRepository, never()).save(any());
+    }
+
+    // -------------------------------------------------------------------------
+    // REGISTER WITH GOOGLE
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testRegisterWithGoogle_Success() {
+        GoogleLoginRequest request = new GoogleLoginRequest("valid-google-id-token");
+        HttpServletRequest mockRequest = Mockito.mock(HttpServletRequest.class);
+        GoogleAuthService.GoogleUserInfo googleUser =
+                new GoogleAuthService.GoogleUserInfo("google-sub-123", "new@gmail.com", "New User");
+
+        when(googleAuthService.verifyIdToken("valid-google-id-token")).thenReturn(googleUser);
+        when(userRepository.findByEmail("new@gmail.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(any())).thenReturn("randomEncodedPassword");
+        when(userRepository.save(any())).thenReturn(testUser);
+        when(tokenProvider.generateToken(any(), anyInt())).thenReturn("mockAccessToken");
+        when(tokenProvider.generateRefreshToken(any())).thenReturn("mockRefreshToken");
+
+        ResponseEntity<?> response = authenticationController.registerWithGoogle(request, mockRequest);
+
+        assertEquals(201, response.getStatusCode().value());
+        verify(userRepository, times(1)).save(any());
+    }
+
+    @Test
+    void testRegisterWithGoogle_EmailAlreadyExists() {
+        GoogleLoginRequest request = new GoogleLoginRequest("valid-google-id-token");
+        HttpServletRequest mockRequest = Mockito.mock(HttpServletRequest.class);
+        GoogleAuthService.GoogleUserInfo googleUser =
+                new GoogleAuthService.GoogleUserInfo("google-sub-123", "existing@gmail.com", "Existing User");
+
+        when(googleAuthService.verifyIdToken("valid-google-id-token")).thenReturn(googleUser);
+        when(userRepository.findByEmail("existing@gmail.com")).thenReturn(Optional.of(testUser));
+
+        ResponseEntity<?> response = authenticationController.registerWithGoogle(request, mockRequest);
+
+        assertEquals(409, response.getStatusCode().value());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void testRegisterWithGoogle_InvalidToken() {
+        GoogleLoginRequest request = new GoogleLoginRequest("invalid-google-token");
+        HttpServletRequest mockRequest = Mockito.mock(HttpServletRequest.class);
+
+        when(googleAuthService.verifyIdToken("invalid-google-token")).thenReturn(null);
+
+        ResponseEntity<?> response = authenticationController.registerWithGoogle(request, mockRequest);
+
+        assertEquals(401, response.getStatusCode().value());
+        verify(userRepository, never()).save(any());
+    }
+
+    // -------------------------------------------------------------------------
     // LOGIN
     // -------------------------------------------------------------------------
 
@@ -231,7 +318,10 @@ public class AuthenticationControllerTest {
         ResponseEntity<?> response = authenticationController.googleLogin(request, mockRequest);
 
         assertEquals(200, response.getStatusCode().value());
-        verify(userRepository, times(1)).save(any());
+        verify(userRepository, times(1)).save(argThat(u -> {
+            User saved = (User) u;
+            return "Test User".equals(saved.getFullName()) && "user@gmail.com".equals(saved.getEmail());
+        }));
         verify(loginDetailsRepository, times(1)).save(any());
     }
 

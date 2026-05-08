@@ -1,0 +1,874 @@
+{
+  "info": {
+    "name": "Vehicle Verification API",
+    "description": "Complete collection for the Vehicle Verification API. Import this file into Postman. Set the `baseUrl` collection variable to your server address before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",         "value": "http://localhost:8002", "type": "string" },
+    { "key": "accessToken",     "value": "",                      "type": "string" },
+    { "key": "refreshToken",    "value": "",                      "type": "string" },
+    { "key": "biometricToken",  "value": "",                      "type": "string" },
+    { "key": "username",        "value": "testuser",              "type": "string" },
+    { "key": "password",        "value": "password123",           "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "pm.test('Response has accessToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Response has refreshToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.refreshToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('tokenType is Bearer', () => {",
+                  "    pm.expect(pm.response.json().tokenType).to.eql('Bearer');",
+                  "});",
+                  "",
+                  "// Auto-save tokens",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken)  pm.collectionVariables.set('accessToken',  body.accessToken);",
+                  "if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",      "value": "application/json" },
+              { "key": "ipaddress",         "value": "127.0.0.1" },
+              { "key": "location",          "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"John Doe\",\n  \"email\": \"testuser@example.com\",\n  \"phone\": \"08012345678\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","register"] }
+          }
+        },
+        {
+          "name": "Register - Duplicate Username (expect 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "",
+                  "pm.test('Error mentions username taken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error).to.include('Username already taken');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",      "value": "application/json" },
+              { "key": "ipaddress",         "value": "127.0.0.1" },
+              { "key": "location",          "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"John Doe\",\n  \"email\": \"testuser@example.com\",\n  \"phone\": \"08012345678\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","register"] }
+          }
+        },
+        {
+          "name": "Register - Missing Fields (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test('Validation error response', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql('FAILED');",
+                  "    pm.expect(body.message).to.eql('Validation failed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",      "value": "application/json" },
+              { "key": "ipaddress",         "value": "127.0.0.1" },
+              { "key": "location",          "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"\",\n  \"email\": \"not-an-email\",\n  \"phone\": \"\",\n  \"password\": \"short\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Response has accessToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('accessToken');",
+                  "    pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Response has refreshToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('refreshToken');",
+                  "    pm.expect(body.refreshToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Response has biometricToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('biometricToken');",
+                  "});",
+                  "",
+                  "pm.test('tokenType is Bearer', () => {",
+                  "    pm.expect(pm.response.json().tokenType).to.eql('Bearer');",
+                  "});",
+                  "",
+                  "// Auto-save tokens to collection variables",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken)    pm.collectionVariables.set('accessToken',    body.accessToken);",
+                  "if (body.refreshToken)   pm.collectionVariables.set('refreshToken',   body.refreshToken);",
+                  "if (body.biometricToken) pm.collectionVariables.set('biometricToken', body.biometricToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "Login - Bad Credentials (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"wrongpassword\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "Login - Missing Fields (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test('Validation error response', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql('FAILED');",
+                  "    pm.expect(body.message).to.eql('Validation failed');",
+                  "    pm.expect(body.data).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Response has new accessToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('accessToken');",
+                  "    pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "// Save new access token",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization",   "value": "Bearer {{refreshToken}}" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","refresh"] }
+          }
+        },
+        {
+          "name": "Refresh Token - Using Access Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 when access token is used for refresh', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization",   "value": "Bearer {{accessToken}}" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","refresh"] }
+          }
+        },
+        {
+          "name": "Change Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Success message returned', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.include('Password changed');",
+                  "});",
+                  "",
+                  "// Tokens are now invalid — clear them",
+                  "pm.collectionVariables.set('accessToken', '');",
+                  "pm.collectionVariables.set('refreshToken', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Authorization",   "value": "Bearer {{accessToken}}" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"{{password}}\",\n  \"newPassword\": \"newPassword123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/change-password", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","change-password"] }
+          }
+        },
+        {
+          "name": "Change Password - Wrong Old Password (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test('Error message returned', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error).to.include('Invalid old password');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Authorization",   "value": "Bearer {{accessToken}}" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"wrongOldPassword\",\n  \"newPassword\": \"newPassword123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/change-password", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","change-password"] }
+          }
+        },
+        {
+          "name": "Request Password Reset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Neutral response returned', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.include('If the username exists');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","reset-password"] }
+          }
+        },
+        {
+          "name": "Confirm Password Reset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Success message returned', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.include('reset successfully');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"token\": \"123456\",\n  \"newPassword\": \"resetPassword123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/reset-password/confirm", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","reset-password","confirm"] }
+          }
+        },
+        {
+          "name": "Confirm Password Reset - Expired Token (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test('Error message returned', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"token\": \"000000\",\n  \"newPassword\": \"resetPassword123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/reset-password/confirm", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","reset-password","confirm"] }
+          }
+        },
+        {
+          "name": "Biometric Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Response has new accessToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Response has rotated biometricToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.biometricToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "// Save rotated tokens",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken)    pm.collectionVariables.set('accessToken',    body.accessToken);",
+                  "if (body.refreshToken)   pm.collectionVariables.set('refreshToken',   body.refreshToken);",
+                  "if (body.biometricToken) pm.collectionVariables.set('biometricToken', body.biometricToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"biometricToken\": \"{{biometricToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login/biometric", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login","biometric"] }
+          }
+        },
+        {
+          "name": "Biometric Login - Invalid Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"biometricToken\": \"invalid-biometric-token\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login/biometric", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login","biometric"] }
+          }
+        },
+        {
+          "name": "Register with Google",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "pm.test('Response has accessToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Response has refreshToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.refreshToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken)  pm.collectionVariables.set('accessToken',  body.accessToken);",
+                  "if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",      "value": "application/json" },
+              { "key": "ipaddress",         "value": "127.0.0.1" },
+              { "key": "location",          "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<paste-google-id-token-here>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register/google", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","register","google"] }
+          }
+        },
+        {
+          "name": "Register with Google - Email Already Exists (expect 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "",
+                  "pm.test('Error mentions email already registered', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error).to.include('Email already registered');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",      "value": "application/json" },
+              { "key": "ipaddress",         "value": "127.0.0.1" },
+              { "key": "location",          "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<paste-google-id-token-for-existing-email>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register/google", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","register","google"] }
+          }
+        },
+        {
+          "name": "Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Response has accessToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "// Save tokens",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken)  pm.collectionVariables.set('accessToken',  body.accessToken);",
+                  "if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<paste-google-id-token-here>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login/google", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login","google"] }
+          }
+        },
+        {
+          "name": "Google Login - Invalid Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"invalid.google.token\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login/google", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login","google"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verification",
+      "item": [
+        {
+          "name": "Verify Plate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Response status is SUCCESS', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql('SUCCESS');",
+                  "});",
+                  "",
+                  "pm.test('Response has data array', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.data).to.be.an('array');",
+                  "    pm.expect(body.data.length).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "pm.test('Response time under 15s', () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(15000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization",   "value": "Bearer {{accessToken}}" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/verify/plate/ABC123XY",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","verify","plate","ABC123XY"]
+            }
+          }
+        },
+        {
+          "name": "Verify Plate - No Auth (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 without token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/verify/plate/ABC123XY",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","verify","plate","ABC123XY"]
+            }
+          }
+        },
+        {
+          "name": "Get History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Response status is SUCCESS', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql('SUCCESS');",
+                  "});",
+                  "",
+                  "pm.test('Response data has pagination fields', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.data).to.have.property('content');",
+                  "    pm.expect(body.data).to.have.property('totalElements');",
+                  "    pm.expect(body.data).to.have.property('totalPages');",
+                  "    pm.expect(body.data.content).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization",   "value": "Bearer {{accessToken}}" },
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/verify/history?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","verify","history"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get History - No Auth (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 without token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "ipaddress",       "value": "127.0.0.1" },
+              { "key": "location",        "value": "Lagos, Nigeria" },
+              { "key": "appInstallationId", "value": "test-device-001" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/verify/history?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","verify","history"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get History - Missing Headers (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 when required headers missing', () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test('Error message mentions missing headers', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error).to.include('Missing required headers');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/verify/history?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","verify","history"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
