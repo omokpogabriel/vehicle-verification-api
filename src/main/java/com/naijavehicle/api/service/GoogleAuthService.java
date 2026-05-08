@@ -18,7 +18,8 @@ public class GoogleAuthService {
 
     public GoogleUserInfo verifyIdToken(String idToken) {
         try {
-            Map<?, ?> response = restClient.get()
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restClient.get()
                     .uri("https://oauth2.googleapis.com/tokeninfo?id_token={token}", idToken)
                     .retrieve()
                     .body(Map.class);
@@ -38,10 +39,11 @@ public class GoogleAuthService {
                 return null;
             }
 
+            String name = response.get("name") != null ? (String) response.get("name") : "";
             return new GoogleUserInfo(
                     (String) response.get("sub"),
                     (String) response.get("email"),
-                    (String) response.getOrDefault("name", "")
+                    name
             );
         } catch (Exception e) {
             log.error("Failed to verify Google ID token: {}", e.getMessage());
