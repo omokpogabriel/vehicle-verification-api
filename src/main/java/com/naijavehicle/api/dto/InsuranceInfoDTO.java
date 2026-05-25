@@ -41,6 +41,18 @@ public class InsuranceInfoDTO {
     @JacksonXmlProperty(localName = "ExpirationDate")
     private String expiryDate;
 
+    @JacksonXmlProperty(localName = "RegistrationNo")
+    private String oldRegistrationNo;
+
+    @JacksonXmlProperty(localName = "DateUploaded")
+    private String dateUploaded;
+
+    @JacksonXmlProperty(localName = "TimeUploaded")
+    private String timeUploaded;
+
+    @JacksonXmlProperty(localName = "CoverType")
+    private String coverType;
+
     @JacksonXmlProperty(localName = "ECOWASBrownCard")
     private String ecowasCard;
 }

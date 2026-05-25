@@ -2,6 +2,7 @@ package com.naijavehicle.api.service;
 
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.ChannelEnum;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -9,6 +10,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
 @Service
+@Slf4j
 public class DvisService {
 
     private final RestClient restClient;

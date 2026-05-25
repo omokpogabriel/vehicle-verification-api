@@ -1,6 +1,7 @@
 package com.naijavehicle.api.models;
 
 import com.naijavehicle.api.dto.ScrapingResult;
+import com.naijavehicle.api.enums.ChannelEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,6 +15,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Document(collection = "vehicle_reports") // Standard snake_case for collections
 @Data
@@ -36,7 +38,7 @@ public class VehicleReport {
     private String plateNumber;
 
     // The key is the source (e.g., "NIID"), the value is the result object
-    private List<ScrapingResult<?>> results;
+    private Map<String,ScrapingResult<?>> results;
 
     private String ipAddress;
     private String appInstallationId;

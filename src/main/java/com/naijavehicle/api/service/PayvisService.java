@@ -23,7 +23,7 @@ public class PayvisService {
             var jsonResponse = restClient.get()
                     .uri(TARGET_URL+plateNumber)
                     .accept(MediaType.APPLICATION_JSON)
-                    .header("Referer", "https://payvis.ng/summary?sv=MUS549JR&st=pn")
+                    .header("Referer", "https://payvis.ng/summary?sv="+plateNumber+"&st=pn")
                     .retrieve()
                  // .body(String.class);
              .toEntity(PayVisResponseDto.class);

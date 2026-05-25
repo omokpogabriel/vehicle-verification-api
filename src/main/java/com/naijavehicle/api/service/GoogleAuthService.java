@@ -36,6 +36,7 @@ public class GoogleAuthService {
                 log.warn("Google ID token verification failed — invalid, expired, or wrong audience");
                 return null;
             }
+            log.info("Google ID token verified for sub: {}", idToken.getPayload().getSubject());
 
             GoogleIdToken.Payload payload = idToken.getPayload();
             if (!Boolean.TRUE.equals(payload.getEmailVerified())) {

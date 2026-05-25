@@ -14,6 +14,7 @@ public class VehicleAdditionalInfoDTO {
     private String chassis;
     private String service;
     private String expiryDate;
+    private String make;
 
 
     public static VehicleAdditionalInfoDTO fromRawString(String raw) {
@@ -35,6 +36,7 @@ public class VehicleAdditionalInfoDTO {
                 .color(dataMap.get("vehicle color"))
                 .chassis(dataMap.get("chassis"))
                 .service(dataMap.get("service"))
+                .make(dataMap.get("vehicle make"))
                 .expiryDate(dataMap.get("expiry"))
                 .build();
     }

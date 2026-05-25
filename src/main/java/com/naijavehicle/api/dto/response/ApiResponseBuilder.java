@@ -1,9 +1,10 @@
-package com.naijavehicle.api.dto;
+package com.naijavehicle.api.dto.response;
 
 import lombok.Builder;
 
 @Builder
-public record ApiResponse<T>(
+public record ApiResponseBuilder<T>(
+        String code,
         String status,
         T data,
         String message

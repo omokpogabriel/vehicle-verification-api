@@ -1,6 +1,6 @@
 package com.naijavehicle.api.exceptions;
 
-import com.naijavehicle.api.dto.ApiResponse;
+import com.naijavehicle.api.dto.response.ApiResponseBuilder;
 import com.naijavehicle.api.enums.ResponseEnum;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
             errors.put(fieldError.getField(), fieldError.getDefaultMessage());
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.builder()
+                .body(ApiResponseBuilder.builder()
                         .status(ResponseEnum.FAILED.name())
                         .message("Validation failed")
                         .data(errors)
@@ -36,7 +36,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Object> handleTimeout(Exception ex) {
         return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT)
                 .body(
-                        ApiResponse.builder()
+                        ApiResponseBuilder.builder()
                                 .status(ResponseEnum.FAILED.name())
                                 .message("One or more verification services timed out. Please try again.")
                                 .build()
@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Object> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.builder()
+                .body(ApiResponseBuilder.builder()
                         .status(ResponseEnum.FAILED.name())
                         .message(ex.getMessage())
                         .build());
@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SystemMalFunctionException.class)
     public ResponseEntity<Object> handleBadRequest(SystemMalFunctionException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.builder()
+                .body(ApiResponseBuilder.builder()
                         .status(ResponseEnum.FAILED.name())
                         .message(ex.getMessage())
                         .build());
@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGeneralError(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.builder()
+                .body(ApiResponseBuilder.builder()
                         .status(ResponseEnum.FAILED.name())
                         .message("Something went wrong, we are working on it")
                         .build()

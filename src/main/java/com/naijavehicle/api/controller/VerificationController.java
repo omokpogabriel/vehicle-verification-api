@@ -1,12 +1,12 @@
 package com.naijavehicle.api.controller;
 
-import com.naijavehicle.api.dto.ApiResponse;
-import com.naijavehicle.api.dto.ScrapingResult;
+import com.naijavehicle.api.dto.response.ApiResponseBuilder;
 import com.naijavehicle.api.enums.ResponseEnum;
 import com.naijavehicle.api.models.User;
 import com.naijavehicle.api.repositoryService.UserRepository;
 import com.naijavehicle.api.repositoryService.VehicleReportRepository;
 import com.naijavehicle.api.service.*;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.security.core.Authentication;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 import org.springframework.cache.annotation.Cacheable;
 
@@ -31,12 +29,12 @@ public class VerificationController {
 
     @GetMapping("/plate/{plateNumber}")
     @Cacheable(value = "verifications", key = "#plateNumber")
-    public ResponseEntity<ApiResponse<?>> verifyPlate(@PathVariable String plateNumber,
-                                                               HttpServletRequest request
+    public ResponseEntity<ApiResponseBuilder<?>> verifyPlate(@PathVariable @NotBlank String plateNumber,
+                                                             HttpServletRequest request
     ) {
-            var result = verificationService.verifyPlate(plateNumber, request);
+            var result = verificationService.verifyPlate(plateNumber.toUpperCase(), request);
             return ResponseEntity.status(HttpStatus.OK).body(
-                 ApiResponse.builder()
+                 ApiResponseBuilder.builder()
                          .status(ResponseEnum.SUCCESS.name())
                          .message("Verification successful")
                          .data(result)
@@ -46,13 +44,13 @@ public class VerificationController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<ApiResponse<?>> getHistory(
+    public ResponseEntity<ApiResponseBuilder<?>> getHistory(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated() || authentication.getName().equals("anonymousUser")) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                 ApiResponse.builder()
+                 ApiResponseBuilder.builder()
                          .status(ResponseEnum.FAILED.name())
                          .message("User not authenticated")
                          .build()
@@ -73,7 +71,7 @@ public class VerificationController {
         var reportsPage = vehicleReportRepository.findByUserId(user.getUserId(), pageable);
         
         return ResponseEntity.status(HttpStatus.OK).body(
-             ApiResponse.builder()
+             ApiResponseBuilder.builder()
                      .status(ResponseEnum.SUCCESS.name())
                      .message("History fetched successfully")
                      .data(reportsPage)

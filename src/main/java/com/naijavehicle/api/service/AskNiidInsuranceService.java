@@ -46,10 +46,10 @@ public class AskNiidInsuranceService {
         this.restClient = restClientBuilder.build();
     }
 
-    public ScrapingResult<InsuranceInfoDTO> verifyLicensePlate(String plateNumber) {
+    public String verifyLicensePlate(String plateNumber) {
         try {
             if (username == null || username.isBlank() || password == null || password.isBlank()) {
-                throw new IllegalStateException("Missing NIID credentials in application.properties (askniid_insurance_user/askniid_insurance_pass).");
+                throw new IllegalStateException("Missing NIID credentials.");
             }
 
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
@@ -58,17 +58,34 @@ public class AskNiidInsuranceService {
             formData.add("Username", username); // {{askniid_insurance_user}}
             formData.add("Password", password); // {{askniid_insurance_pass}}
 
-            String responseXml = restClient.post()
+            return restClient.post()
                     .uri(TARGET_URL)
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(formData)
                     .retrieve()
                     .body(String.class);
 
+        } catch (Exception e) {
+            log.info("the vehicle exception -> {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public  ScrapingResult<InsuranceInfoDTO> decodeAskNiidResult(String responseXml, String plateNumber){
+        try{
+            log.info("it entered here ->");
+            ScrapingResult<InsuranceInfoDTO> scrapResult = new ScrapingResult<>();
+            if(responseXml == null){
+
+                scrapResult.setPlateNumber(plateNumber);
+                scrapResult.setCarMake("Unknown");
+                scrapResult.setAdditionalInfo(null);
+                scrapResult.setStatus("ETO11");
+                scrapResult.setType(ChannelEnum.VEHICLE_INSURANCE.name());
+                return scrapResult;
+            }
             String soapResult = extractSoapString(responseXml);
             var result= parseInsuranceXml(soapResult);//(plateNumber, soapResult);
-
-            ScrapingResult<InsuranceInfoDTO> scrapResult = new ScrapingResult<>();
             scrapResult.setPlateNumber(plateNumber);
             scrapResult.setCarMake(result.getMake());
             scrapResult.setAdditionalInfo(result);
@@ -76,7 +93,10 @@ public class AskNiidInsuranceService {
             scrapResult.setType(ChannelEnum.VEHICLE_INSURANCE.name());
             return scrapResult;
         } catch (Exception e) {
-            return new ScrapingResult<InsuranceInfoDTO>(plateNumber, "Not found", "Error: " + e.getMessage(), null, "Vehicle License");
+            return new ScrapingResult<>(plateNumber, "Not found",
+                    "Error: " + e.getMessage(),
+                    null,
+                    "Vehicle License");
         }
     }
 

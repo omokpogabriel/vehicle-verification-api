@@ -1,10 +1,14 @@
 package com.naijavehicle.api.controller;
 
 import com.naijavehicle.api.dto.*;
+import com.naijavehicle.api.dto.response.ApiResponse;
+import com.naijavehicle.api.dto.response.ApiResponseBuilder;
+import com.naijavehicle.api.enums.ResponseEnum;
 import com.naijavehicle.api.models.LoginDetails;
 import com.naijavehicle.api.models.User;
 import com.naijavehicle.api.repositoryService.LoginDetailsRepository;
 import com.naijavehicle.api.repositoryService.UserRepository;
+import com.naijavehicle.api.security.CustomUserDetailsService;
 import com.naijavehicle.api.security.JwtTokenProvider;
 import com.naijavehicle.api.service.GoogleAuthService;
 import com.naijavehicle.api.utils.GeneralUtils;
@@ -16,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -39,6 +44,7 @@ public class AuthenticationController {
     private final LoginDetailsRepository loginDetailsRepository;
     private final PasswordEncoder passwordEncoder;
     private final GoogleAuthService googleAuthService;
+    private final CustomUserDetailsService customUserDetailsService;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 15;
@@ -48,12 +54,12 @@ public class AuthenticationController {
     private Long jwtExpiration;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponseBuilder<?>> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
 
         log.info(" the payload -> {}", request);
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("{\"error\": \"Email already registered\"}");
+            return ApiResponse.conflict(AppConstant.EMAIL_EXIST);
         }
 
         User user = User.builder()
@@ -74,19 +80,20 @@ public class AuthenticationController {
 
         log.info("New user registered: {}", request.getEmail().replaceAll("[\\r\\n]", ""));
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                JwtAuthenticationResponse.builder()
-                        .accessToken(accessToken)
-                        .refreshToken(refreshToken)
-                        .tokenType("Bearer")
-                        .expiresIn(jwtExpiration)
-                        .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
-                        .build()
-        );
+        var data = JwtAuthenticationResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(jwtExpiration)
+                .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
+                .build();
+
+        return ApiResponse.created(data);
     }
 
     @PostMapping("/register/google")
     public ResponseEntity<?> registerWithGoogle(@Valid @RequestBody GoogleLoginRequest request, HttpServletRequest httpRequest) {
+        log.info("the request -> {}", request);
         GoogleAuthService.GoogleUserInfo googleUser = googleAuthService.verifyIdToken(request.getIdToken());
         if (googleUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("{\"error\": \"Invalid or expired Google token\"}");
@@ -126,11 +133,12 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<JwtAuthenticationResponse> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+    public ResponseEntity<ApiResponseBuilder<JwtAuthenticationResponse>> login(@Valid @RequestBody LoginRequest loginRequest,
+                                                                               HttpServletRequest request) {
         long recentFailures = loginDetailsRepository.countByUsernameAndStatusAndTimestampAfter(
                 loginRequest.getUsername(), "FAILURE", LocalDateTime.now().minusMinutes(LOCKOUT_MINUTES));
         if (recentFailures >= MAX_FAILED_ATTEMPTS) {
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+            return ApiResponse.tooManyRequests();
         }
 
         try {
@@ -141,15 +149,17 @@ public class AuthenticationController {
                     )
             );
 
-            User user = userRepository.findByUsername(loginRequest.getUsername()).orElse(null);
+
+            User user = userRepository.findByUsername(loginRequest.getUsername()).orElseThrow(() ->
+                    new BadCredentialsException("Invalid user Credentails")
+            );
 
             String rawBiometricToken = UUID.randomUUID().toString();
-            if (user != null) {
-                user.setBiometricToken(passwordEncoder.encode(rawBiometricToken));
-                userRepository.save(user);
-            }
+            user.setBiometricToken(passwordEncoder.encode(rawBiometricToken));
+            userRepository.save(user);
 
-            int tokenVersion = user != null ? user.getTokenVersion() : 0;
+
+            int tokenVersion = user.getTokenVersion();
             String accessToken = tokenProvider.generateToken(authentication.getName(), tokenVersion);
             String refreshToken = tokenProvider.generateRefreshToken(authentication.getName());
 
@@ -169,10 +179,10 @@ public class AuthenticationController {
                     .ipAddress(GeneralUtils.getIpAddress(request))
                     .location(sanitizeHeader(request.getHeader("location")))
                     .appInstallationId(GeneralUtils.getAppInstallationId(request))
-                    .status("SUCCESS")
+                    .status(ResponseEnum.SUCCESS.name())
                     .build());
 
-            return ResponseEntity.ok(response);
+            return ApiResponse.loginSuccess(AppConstant.LOGIN_SUCCESS, response);
         } catch (AuthenticationException e) {
             log.error("Authentication failed for user: {}", loginRequest.getUsername().replaceAll("[\\r\\n]", ""));
 
@@ -185,27 +195,26 @@ public class AuthenticationController {
                     .failureReason(e.getMessage())
                     .build());
 
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ApiResponse.failure(AppConstant.LOGIN_FAILURE);
+
         }
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<JwtAuthenticationResponse> refresh(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<ApiResponseBuilder<JwtAuthenticationResponse>> refresh(@RequestHeader("Authorization") String authHeader) {
         try {
+            log.info("the request header -> {}", authHeader);
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+                return ApiResponse.badRequest("Invalid refresh token");
             }
 
             String refreshToken = authHeader.substring(7);
 
-            if (!tokenProvider.validateToken(refreshToken)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
+            if (!tokenProvider.validateToken(refreshToken) ||
+                    !"refresh".equals(tokenProvider.getTokenType(refreshToken))) {
+                return ApiResponse.failure("Invalid refresh token");
 
-            if (!"refresh".equals(tokenProvider.getTokenType(refreshToken))) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
-
             String username = tokenProvider.getUsernameFromToken(refreshToken);
             User user = userRepository.findByUsername(username).orElse(null);
             int tokenVersion = user != null ? user.getTokenVersion() : 0;
@@ -219,28 +228,30 @@ public class AuthenticationController {
                     .build();
 
             log.info("Token refreshed for user: {}", username);
-            return ResponseEntity.ok(response);
+            return ApiResponse.loginSuccess("Token refresh successful", response);
         } catch (Exception e) {
             log.error("Error refreshing token: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ApiResponse.serverError("An error occurred while refreshing token");
         }
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request, Authentication authentication) {
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request,
+                                            Authentication authentication) {
+
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ApiResponse.failure("user is Unauthorized");
         }
 
         User user = userRepository.findByUsername(authentication.getName()).orElse(null);
         if (user == null || !passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-            return ResponseEntity.badRequest().body("{\"error\": \"Invalid old password\"}");
+            return ApiResponse.badRequest("Invalid old password");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
-        return ResponseEntity.ok("{\"message\": \"Password changed successfully\"}");
+        return ApiResponse.success("Password changed successfully");
     }
 
     @PostMapping("/reset-password")
@@ -256,7 +267,7 @@ public class AuthenticationController {
             log.info("PASSWORD RESET TOKEN FOR {}: {}", user.getUsername(), resetToken);
         }
 
-        return ResponseEntity.ok("{\"message\": \"If the username exists, a reset code has been sent.\"}");
+        return ApiResponse.success("If the username exists, a reset code has been sent.");
     }
 
     @PostMapping("/reset-password/confirm")
@@ -264,15 +275,15 @@ public class AuthenticationController {
         User user = userRepository.findByUsername(request.getUsername()).orElse(null);
 
         if (user == null || user.getResetToken() == null) {
-            return ResponseEntity.badRequest().body("{\"error\": \"Invalid or expired reset token\"}");
+            return ApiResponse.badRequest("Invalid or expired reset token");
         }
 
         if (user.getResetTokenExpiry() != null && LocalDateTime.now().isAfter(user.getResetTokenExpiry())) {
-            return ResponseEntity.badRequest().body("{\"error\": \"Reset token has expired\"}");
+            return ApiResponse.badRequest("Reset token has expired");
         }
 
         if (!passwordEncoder.matches(request.getToken(), user.getResetToken())) {
-            return ResponseEntity.badRequest().body("{\"error\": \"Invalid reset token\"}");
+            return ApiResponse.badRequest("Invalid reset token");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -280,11 +291,12 @@ public class AuthenticationController {
         user.setResetTokenExpiry(null);
         userRepository.save(user);
 
-        return ResponseEntity.ok("{\"message\": \"Password has been reset successfully. You can now login.\"}");
+        return ApiResponse.success("Password has been reset successfully. You can now login.");
     }
 
     @PostMapping("/login/biometric")
-    public ResponseEntity<JwtAuthenticationResponse> biometricLogin(@Valid @RequestBody BiometricLoginRequest requestBody, HttpServletRequest request) {
+    public ResponseEntity<?> biometricLogin(@Valid @RequestBody BiometricLoginRequest requestBody,
+                                                                    HttpServletRequest request) {
         try {
             User user = userRepository.findByUsername(requestBody.getUsername()).orElse(null);
 
@@ -319,7 +331,7 @@ public class AuthenticationController {
                     .status("SUCCESS")
                     .build());
 
-            return ResponseEntity.ok(response);
+            return ApiResponse.success("Biometric login successful", response);
         } catch (Exception e) {
             log.error("Biometric Authentication failed for user: {}", requestBody.getUsername().replaceAll("[\\r\\n]", ""));
 
@@ -332,12 +344,13 @@ public class AuthenticationController {
                     .failureReason(e.getMessage())
                     .build());
 
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ApiResponse.failure("Biometric login failed");
         }
     }
 
     @PostMapping("/login/google")
-    public ResponseEntity<JwtAuthenticationResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request, HttpServletRequest httpRequest) {
+    public ResponseEntity<JwtAuthenticationResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request,
+                                                                 HttpServletRequest httpRequest) {
         GoogleAuthService.GoogleUserInfo googleUser = googleAuthService.verifyIdToken(request.getIdToken());
         if (googleUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
