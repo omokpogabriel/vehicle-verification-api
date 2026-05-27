@@ -38,7 +38,7 @@ public class VehicleReport {
     private String plateNumber;
 
     // The key is the source (e.g., "NIID"), the value is the result object
-    private Map<String,ScrapingResult<?>> results;
+    private Map<ChannelEnum,ScrapingResult<?>> results;
 
     private String ipAddress;
     private String appInstallationId;

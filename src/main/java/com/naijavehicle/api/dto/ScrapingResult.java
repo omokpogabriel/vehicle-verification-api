@@ -11,6 +11,7 @@ public class ScrapingResult<T> {
     private String plateNumber;
     private String carMake;
     private String status;
+    private String code;
     private T additionalInfo;
     private String type;
 }

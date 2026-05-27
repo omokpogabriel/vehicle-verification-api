@@ -41,7 +41,7 @@ public class VehicleReportRepository {
            if(!plateNumberExists){
                mongoTemplate.save(vehicleReport);
            }else{
-               mongoTemplate.findAndModify(query, update, VehicleReport.class);
+               mongoTemplate.upsert(query, update, VehicleReport.class);
            }
 
         }catch (DuplicateKeyException ex){
@@ -69,8 +69,7 @@ public class VehicleReportRepository {
     }
 
     public VehicleReport findByPlateNumber(String plateNumber){
-        Query query = new Query(Criteria.where("plateNumber").is(plateNumber)
-                .and("updatedAt").gte(LocalDate.now().atStartOfDay()));
+        Query query = new Query(Criteria.where("plateNumber").is(plateNumber));
         var result =  mongoTemplate.findOne(query, VehicleReport.class);
         return result;
     }

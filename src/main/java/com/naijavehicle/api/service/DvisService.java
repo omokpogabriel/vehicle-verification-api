@@ -2,6 +2,7 @@ package com.naijavehicle.api.service;
 
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.ChannelEnum;
+import com.naijavehicle.api.enums.ResponseEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class DvisService {
                     .body(String.class);
 
             String readableStatus = jsonResponse;
+            String code = "";
             try {
                 if (jsonResponse.contains("\"message\"")) {
                     String msg = jsonResponse.split("\"message\":\"")[1].split("\"")[0];
@@ -42,13 +44,18 @@ public class DvisService {
                         if (!exp.isEmpty()) {
                             readableStatus += " (Expires: " + exp + ")";
                         }
+                        code = ResponseEnum.FAILED.code;
+                    }else{
+                        code = ResponseEnum.SUCCESS.code;
+                        readableStatus = ResponseEnum.SUCCESS.name();
                     }
                 }
             } catch (Exception ex) {
                 // Ignore parse errors, keep raw response
             }
 
-            return new ScrapingResult<>(plateNumber, "DVIS", readableStatus, "", ChannelEnum.DIVS.name());
+            return new ScrapingResult<>(plateNumber, "DVIS", readableStatus, code,"",
+                    ChannelEnum.DIVS.name());
         } catch (Exception e) {
             throw new RuntimeException("DVIS API failed: " + e.getMessage(), e);
         }

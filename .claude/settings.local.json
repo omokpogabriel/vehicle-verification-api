@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\antho\\\\IdeaProjects\\\\vehicle-verification-api\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(xargs grep -l \"SecurityFilterChain\\\\|@EnableWebSecurity\")",
+      "Bash(git add *)",
+      "Bash(./mvnw test *)"
+    ]
+  }
+}

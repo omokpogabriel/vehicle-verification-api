@@ -1,5 +1,7 @@
 package com.naijavehicle.api.controller;
 
+import com.naijavehicle.api.dto.AppConstant;
+import com.naijavehicle.api.dto.VerificationResponseObject;
 import com.naijavehicle.api.dto.response.ApiResponseBuilder;
 import com.naijavehicle.api.enums.ResponseEnum;
 import com.naijavehicle.api.models.User;
@@ -28,16 +30,24 @@ public class VerificationController {
     private final UserRepository userRepository;
 
     @GetMapping("/plate/{plateNumber}")
-    @Cacheable(value = "verifications", key = "#plateNumber")
+    //@Cacheable(value = "verifications", key = "#plateNumber")
     public ResponseEntity<ApiResponseBuilder<?>> verifyPlate(@PathVariable @NotBlank String plateNumber,
                                                              HttpServletRequest request
     ) {
             var result = verificationService.verifyPlate(plateNumber.toUpperCase(), request);
+
+            Long totalSuccessSearch = result.stream().filter( results -> results.getCode()
+                    .equalsIgnoreCase(ResponseEnum.SUCCESS.code))
+                    .count();
+
+            VerificationResponseObject vro = VerificationResponseObject.builder()
+                    .totalCount(result.size())
+                    .successCount(totalSuccessSearch).report(result).build();
             return ResponseEntity.status(HttpStatus.OK).body(
                  ApiResponseBuilder.builder()
                          .status(ResponseEnum.SUCCESS.name())
                          .message("Verification successful")
-                         .data(result)
+                         .data(vro)
                          .build()
             );
 

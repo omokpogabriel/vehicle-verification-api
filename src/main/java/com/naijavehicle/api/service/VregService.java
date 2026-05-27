@@ -4,6 +4,7 @@ import ch.qos.logback.core.testUtil.RandomUtil;
 import com.naijavehicle.api.dto.CustomResponseDto;
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.ChannelEnum;
+import com.naijavehicle.api.enums.ResponseEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,8 @@ public class VregService {
     public ScrapingResult<String> verifyLicensePlate(String plateNumber, String askiInfo) {
 
         var scrapingResult = new ScrapingResult<String>(
-                plateNumber, "", "Unabled to fetch data", "",
-                ChannelEnum.VEHICLE_INSURANCE.name()
+                plateNumber, "", "Unabled to fetch data", ResponseEnum.FAILED.code,
+                "", ChannelEnum.VEHICLE_INSURANCE.name()
         );
 
         var getChasis = Arrays.stream(askiInfo.split("(\s+\\|\s+)"))
@@ -60,7 +61,8 @@ public class VregService {
                 if(status){
 
                     scrapingResult.setPlateNumber(vin);
-                    return new ScrapingResult<String>(vin, "status", String.valueOf(status)
+                    return new ScrapingResult<String>(vin, "status", String.valueOf(status),
+                            ResponseEnum.SUCCESS.code
                             , ""+jsonResponse.getBody(), ChannelEnum.CUSTOM_REG.name());
                 }
             }

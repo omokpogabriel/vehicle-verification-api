@@ -4,6 +4,7 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.naijavehicle.api.dto.InsuranceInfoDTO;
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.ChannelEnum;
+import com.naijavehicle.api.enums.ResponseEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -28,6 +29,8 @@ public class AskNiidInsuranceService {
 
     private static final String TARGET_URL =
             "https://niid.org/NIA_API/Service.asmx/Vehicle_PolicyVerification";
+
+    private static final XmlMapper XML_MAPPER = new XmlMapper();
 
     private final RestClient restClient;
 
@@ -76,11 +79,11 @@ public class AskNiidInsuranceService {
             log.info("it entered here ->");
             ScrapingResult<InsuranceInfoDTO> scrapResult = new ScrapingResult<>();
             if(responseXml == null){
-
                 scrapResult.setPlateNumber(plateNumber);
                 scrapResult.setCarMake("Unknown");
                 scrapResult.setAdditionalInfo(null);
-                scrapResult.setStatus("ETO11");
+                scrapResult.setStatus("Pending request");
+                scrapResult.setCode("ETO11");
                 scrapResult.setType(ChannelEnum.VEHICLE_INSURANCE.name());
                 return scrapResult;
             }
@@ -89,23 +92,25 @@ public class AskNiidInsuranceService {
             scrapResult.setPlateNumber(plateNumber);
             scrapResult.setCarMake(result.getMake());
             scrapResult.setAdditionalInfo(result);
-            scrapResult.setStatus(result.getStatus());
+            scrapResult.setStatus(result.getStatus().equalsIgnoreCase("1") ?
+                    ResponseEnum.SUCCESS.name() : ResponseEnum.FAILED.name());
+            scrapResult.setCode(result.getStatus().equalsIgnoreCase("1") ?
+                    ResponseEnum.SUCCESS.code : ResponseEnum.FAILED.code);
             scrapResult.setType(ChannelEnum.VEHICLE_INSURANCE.name());
             return scrapResult;
         } catch (Exception e) {
             return new ScrapingResult<>(plateNumber, "Not found",
                     "Error: " + e.getMessage(),
+                    ResponseEnum.FAILED.code,
                     null,
                     "Vehicle License");
         }
     }
 
     public InsuranceInfoDTO parseInsuranceXml(String xmlResult) throws Exception {
-        XmlMapper xmlMapper = new XmlMapper();
-
         String cleanXml = xmlResult.replace("result -> ", "").trim();
         String unescapedXml = HtmlUtils.htmlUnescape(cleanXml);
-        return xmlMapper.readValue(unescapedXml, InsuranceInfoDTO.class);
+        return XML_MAPPER.readValue(unescapedXml, InsuranceInfoDTO.class);
     }
 
     /**
@@ -122,95 +127,5 @@ public class AskNiidInsuranceService {
         return xml.trim();
     }
 
-    private static ScrapingResult<String> mapSoapInsuranceInfo(String plateNumber, String soapResult) {
-        var scrapResult = new ScrapingResult<String>(plateNumber, "Unknown", "unable to get record",
-                "", ChannelEnum.VEHICLE_INSURANCE.name());
 
-        if (soapResult == null || soapResult.isBlank()) {
-            return scrapResult;        }
-
-        String maybeXml = unescapeXml(soapResult);
-
-        try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            // Extra safety: avoid XXE when parsing remote payloads.
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            factory.setXIncludeAware(false);
-            factory.setExpandEntityReferences(false);
-
-            Document doc = factory.newDocumentBuilder().parse(new InputSource(new StringReader(maybeXml)));
-            doc.getDocumentElement().normalize();
-
-            String statusRaw = getTagText(doc, "Status");
-            int status = parseIntOrDefault(statusRaw, 0);
-
-            String carMake = getTagText(doc, "CarMake");
-            String policyNo = getTagText(doc, "PolicyNo");
-            String model = getTagText(doc, "Model");
-            String registrationNo = getTagText(doc, "RegistrationNo");
-            String newRegistrationNo = getTagText(doc, "NewRegistrationNo");
-            String issueDate = getTagText(doc, "IssueDate");
-            String expirationDate = getTagText(doc, "ExpirationDate");
-            String vehicleType = getTagText(doc, "VehicleType");
-
-            StringBuilder info = new StringBuilder();
-            if (!policyNo.isBlank()) info.append("PolicyNo: ").append(policyNo).append(" | ");
-            if (!model.isBlank()) info.append("Model: ").append(model).append(" | ");
-            if (!carMake.isBlank()) info.append("CarMake: ").append(carMake).append(" | ");
-            if (!vehicleType.isBlank()) info.append("VehicleType: ").append(vehicleType).append(" | ");
-
-            // Prefer the new reg number if present, otherwise fall back to registration no.
-            String reg = !newRegistrationNo.isBlank() ? newRegistrationNo : registrationNo;
-            if (!reg.isBlank()) info.append("RegistrationNo: ").append(reg).append(" | ");
-
-            if (!issueDate.isBlank()) info.append("IssueDate: ").append(issueDate).append(" | ");
-            if (!expirationDate.isBlank()) info.append("ExpirationDate: ").append(expirationDate);
-
-            String insuranceStatus = status == 1 ? "Valid" : "Invalid";
-            String additionalInfo = info.toString().trim();
-            if (additionalInfo.endsWith("|")) additionalInfo = additionalInfo.substring(0, additionalInfo.length() - 1).trim();
-            if (additionalInfo.isBlank()) additionalInfo = "Source: niid.org";
-
-            scrapResult.setPlateNumber(plateNumber);
-            scrapResult.setAdditionalInfo(carMake);
-            scrapResult.setAdditionalInfo(additionalInfo);
-            scrapResult.setStatus(insuranceStatus);
-            return scrapResult;
-
-        } catch (Exception parseEx) {
-            scrapResult.setPlateNumber(plateNumber);
-            scrapResult.setAdditionalInfo(soapResult);
-           return scrapResult;
-                   }
-    }
-
-    private static String unescapeXml(String value) {
-        // The SOAP <string> sometimes contains escaped XML like &lt;InsuranceInfo&gt;...&lt;/InsuranceInfo&gt;
-        return value
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&quot;", "\"")
-                .replace("&apos;", "'")
-                .replace("&amp;", "&");
-    }
-
-    private static String getTagText(Document doc, String tagName) {
-        NodeList nodes = doc.getElementsByTagName(tagName);
-        if (nodes == null || nodes.getLength() == 0) return "";
-        String text = nodes.item(0).getTextContent();
-        return text == null ? "" : text.trim();
-    }
-
-    private static int parseIntOrDefault(String value, int defaultValue) {
-        try {
-            if (value == null) return defaultValue;
-            String v = value.trim();
-            if (v.isEmpty()) return defaultValue;
-            return Integer.parseInt(v);
-        } catch (Exception ignored) {
-            return defaultValue;
-        }
-    }
 }

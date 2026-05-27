@@ -21,6 +21,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +49,7 @@ public class VerificationServiceImpl implements VerificationService {
         return vehicleReportRepository.findByPlateNumber(plateNumber);
     }
 
-    private  Map<String,ScrapingResult<?>> callDirect(String plateNumber, HttpServletRequest request)
+    private  Map<ChannelEnum,ScrapingResult<?>> callDirect(String plateNumber, HttpServletRequest request)
             throws BadRequestException {
         var askNiidFuture = CompletableFuture
                 .supplyAsync(() -> askNiidInsuranceService.verifyLicensePlate(plateNumber),
@@ -79,13 +80,11 @@ public class VerificationServiceImpl implements VerificationService {
 
         var askResult = askNiidInsuranceService.decodeAskNiidResult(askNiidFuture.join(), plateNumber);
 
-        Map<String,ScrapingResult<?>> result = Map.of(
-               ChannelEnum.VEHICLE_INSURANCE.name, askResult,
-                // exceptions
-               ChannelEnum.AUTO_REG.name, autoRegFuture.join(),
-                ChannelEnum.PAY_VIS.name,payvisFuture.join(),
-                ChannelEnum.DIVS.name,dvisFuture.join()
-        );
+        Map<ChannelEnum, ScrapingResult<?>> result = new HashMap<>();
+        result.put(ChannelEnum.VEHICLE_INSURANCE, askResult);
+        result.put(ChannelEnum.AUTO_REG, autoRegFuture.join());
+        result.put(ChannelEnum.PAY_VIS, payvisFuture.join());
+        result.put(ChannelEnum.DIVS, dvisFuture.join());
         log.info(" the g response -> {}", result);
         result.values().stream().filter(
                         value -> !value.getStatus().toLowerCase().contains("error"))
@@ -120,30 +119,28 @@ public class VerificationServiceImpl implements VerificationService {
     @Override
     public List<ScrapingResult<?>> verifyPlate(String plateNumber, HttpServletRequest request) {
         try {
+
             VehicleReport existingReport = checkExists(plateNumber);
+
+            log.info("again -> {}",existingReport);
             if (existingReport != null) {
                 log.info("Cache hit for plate {}: {}", plateNumber, existingReport);
-                // check for which one of them is ETO11 and make the call again
-//                existingReport.getResults().values().stream().filter(
-//                        report -> report.getStatus().equalsIgnoreCase("ETO11")
-//                ).toList().forEach(
-//                        report -> {
-//                            if(report.getStatus().equalsIgnoreCase(ChannelEnum.VEHICLE_INSURANCE.name())){
-//                                report. askNiidInsuranceService.verifyLicensePlate(plateNumber);
-//                            }else if(report.getStatus().equalsIgnoreCase(ChannelEnum.AUTO_REG.name())){
-//                                autoRegService.verifyLicensePlate(plateNumber);
-//                            }else if(report.getStatus().equalsIgnoreCase(ChannelEnum.PAY_VIS.name())){
-//                                payvisService.verifyLicensePlate(plateNumber);
-//                            }else if(report.getStatus().equalsIgnoreCase(ChannelEnum.DIVS.name())){
-//                                dvisService.verifyLicensePlate(plateNumber);
-//                            }
-//                        }
-//                );
 
 
+               var insurance =  existingReport.getResults().get(ChannelEnum.VEHICLE_INSURANCE);
+
+               if(insurance.getCode().equalsIgnoreCase("ETO11")){
+                   var responseXml = askNiidInsuranceService.verifyLicensePlate(plateNumber);
+                   var parsed = askNiidInsuranceService.decodeAskNiidResult( responseXml,plateNumber);
+
+                existingReport.getResults().put(ChannelEnum.VEHICLE_INSURANCE, parsed);
+                   log.info("the parsed -> {}", existingReport);
+                   vehicleReportRepository.updateReport(existingReport);
+               }
 
                 return existingReport.getResults().values().stream().toList();
             }
+
 
             return callDirect(plateNumber, request).values().stream().toList();
         } catch (Exception e) {

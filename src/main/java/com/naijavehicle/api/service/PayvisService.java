@@ -3,6 +3,7 @@ package com.naijavehicle.api.service;
 import com.naijavehicle.api.dto.PayVisResponseDto;
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.ChannelEnum;
+import com.naijavehicle.api.enums.ResponseEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -31,15 +32,17 @@ public class PayvisService {
             if(jsonResponse.getStatusCode().is2xxSuccessful()){
                 var body = jsonResponse.getBody();
 
-                String status = body.compoundBills().size() == 0
+                String code = body.compoundBills().size() == 0
                         &&  body.externalBills().size() == 0
                         &&  body.localBills().size() == 0
-                        ? "No Data Found" : "Data Found";
-                return new ScrapingResult<>(plateNumber, "Payvis", status, body, ChannelEnum.PAY_VIS.name());
+                        ? ResponseEnum.SUCCESS.code : ResponseEnum.FAILED.code;
+                String status = code.equalsIgnoreCase(ResponseEnum.SUCCESS.code) ? "No Bill found" : "Bills Found";
+                return new ScrapingResult<>(plateNumber, "Payvis", status,code,
+                        body,ChannelEnum.PAY_VIS.name());
             }
 
             return new ScrapingResult<>(
-                    plateNumber, "", "Unabled to fetch data", null,
+                    plateNumber, "", "Unabled to fetch data", ResponseEnum.FAILED.code,null,
                     ChannelEnum.PAY_VIS.name()
             );
         } catch (Exception e) {
