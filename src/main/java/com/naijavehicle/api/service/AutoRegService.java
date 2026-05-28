@@ -65,7 +65,7 @@ public class AutoRegService {
 
             // Scope to modal-body to avoid false matches elsewhere in the page
             String scope = modalBodySection(html);
-            log.info("hello -> {}", "autoreg");         List<String> leads = new ArrayList<>();
+           List<String> leads = new ArrayList<>();
             Matcher leadMatcher = LEAD_PATTERN.matcher(scope);
             while (leadMatcher.find()) {
                 leads.add(stripTags(leadMatcher.group(1)));

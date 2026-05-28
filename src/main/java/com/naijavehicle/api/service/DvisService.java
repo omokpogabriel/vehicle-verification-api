@@ -1,5 +1,6 @@
 package com.naijavehicle.api.service;
 
+import com.naijavehicle.api.dto.RoadWorthinessDto;
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.enums.ChannelEnum;
 import com.naijavehicle.api.enums.ResponseEnum;
@@ -26,35 +27,33 @@ public class DvisService {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
             formData.add("reg_no", plateNumber);
 
-            String jsonResponse = restClient.post()
+            RoadWorthinessDto jsonResponse = restClient.post()
                     .uri(url)
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(formData)
                     .retrieve()
-                    .body(String.class);
+                    .body(RoadWorthinessDto.class);
 
-            String readableStatus = jsonResponse;
             String code = "";
-            try {
-                if (jsonResponse.contains("\"message\"")) {
-                    String msg = jsonResponse.split("\"message\":\"")[1].split("\"")[0];
-                    readableStatus = msg;
-                    if (jsonResponse.contains("\"RwcExp\"")) {
-                        String exp = jsonResponse.split("\"RwcExp\":\"")[1].split("\"")[0];
-                        if (!exp.isEmpty()) {
-                            readableStatus += " (Expires: " + exp + ")";
-                        }
-                        code = ResponseEnum.FAILED.code;
-                    }else{
-                        code = ResponseEnum.SUCCESS.code;
-                        readableStatus = ResponseEnum.SUCCESS.name();
-                    }
-                }
-            } catch (Exception ex) {
-                // Ignore parse errors, keep raw response
+            String readableStatus = "";
+            String appInfo = "";
+            log.info("the response from dvis is {}", jsonResponse);
+            if (jsonResponse == null || jsonResponse.getMessage() == null) {
+                code = ResponseEnum.FAILED.code;
+                readableStatus = ResponseEnum.FAILED.name();
+
+            } else {
+
+                readableStatus = jsonResponse.getMessage()
+                        .contains("Invalid") ? "Invalid" : "Valid";
+                code = readableStatus.equalsIgnoreCase("Valid") ? ResponseEnum.SUCCESS.name()
+                        : ResponseEnum.FAILED.code;
+                appInfo = jsonResponse.getMessage() + " -Expire: " + jsonResponse.getRwcExp();
             }
 
-            return new ScrapingResult<>(plateNumber, "DVIS", readableStatus, code,"",
+            return new ScrapingResult<>(plateNumber, "DVIS", readableStatus,
+                    code,
+                    appInfo,
                     ChannelEnum.DIVS.name());
         } catch (Exception e) {
             throw new RuntimeException("DVIS API failed: " + e.getMessage(), e);
