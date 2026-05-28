@@ -121,15 +121,14 @@ public class AuthenticationController {
 
         log.info("New user registered via Google: {}", googleUser.email().replaceAll("[\\r\\n]", ""));
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                JwtAuthenticationResponse.builder()
-                        .accessToken(accessToken)
-                        .refreshToken(refreshToken)
-                        .tokenType("Bearer")
-                        .expiresIn(jwtExpiration)
-                        .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
-                        .build()
-        );
+        var result=   JwtAuthenticationResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(jwtExpiration)
+                .appInstallationId(GeneralUtils.getAppInstallationId(httpRequest))
+                .build();
+        return ApiResponse.created(result);
     }
 
     @PostMapping("/login")
@@ -349,7 +348,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login/google")
-    public ResponseEntity<JwtAuthenticationResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request,
+    public ResponseEntity<ApiResponseBuilder<?>> googleLogin(@Valid @RequestBody GoogleLoginRequest request,
                                                                  HttpServletRequest httpRequest) {
         GoogleAuthService.GoogleUserInfo googleUser = googleAuthService.verifyIdToken(request.getIdToken());
         if (googleUser == null) {
@@ -397,7 +396,14 @@ public class AuthenticationController {
                     .status("SUCCESS")
                     .build());
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(
+                    ApiResponseBuilder.builder()
+                            .code(ResponseEnum.SUCCESS.code)
+                            .status(ResponseEnum.SUCCESS.name())
+                            .message("Google login successful")
+                            .data(response)
+                            .build()
+            );
         } catch (Exception e) {
             log.error("Google login failed for {}: {}", googleUser.email(), e.getMessage());
 
