@@ -49,6 +49,11 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            # Install Java 21 if not present
+            if ! java -version 2>&1 | grep -q '21'; then
+              apt-get update -y && apt-get install -y openjdk-21-jre-headless
+            fi
+
             # Write secrets to the env file (overwritten on every deploy)
             cat > /etc/iwura.env << 'EOF'
             MONGO_URL=${{ secrets.MONGO_URL }}
@@ -63,11 +68,34 @@ jobs:
             EOF
             chmod 600 /etc/iwura.env
 
-            # Rename the uploaded file to match the systemd service
+            # Create the systemd service if it doesn't exist
+            if [ ! -f /etc/systemd/system/iwura.service ]; then
+              cat > /etc/systemd/system/iwura.service << 'SERVICE'
+            [Unit]
+            Description=Iwura Vehicle Verification API
+            After=network.target
+
+            [Service]
+            EnvironmentFile=/etc/iwura.env
+            ExecStart=/usr/bin/java -jar /root/iwura.jar
+            WorkingDirectory=/root
+            Restart=on-failure
+            RestartSec=5
+            StandardOutput=journal
+            StandardError=journal
+
+            [Install]
+            WantedBy=multi-user.target
+            SERVICE
+              systemctl daemon-reload
+              systemctl enable iwura
+            fi
+
+            # Rename the uploaded JAR to match the systemd service
             mv /root/*.jar /root/iwura.jar
 
             # Restart the service to apply the updates
-            sudo systemctl restart iwura
+            systemctl restart iwura
 
-            # Verify the service status is active
-            sudo systemctl status iwura --no-pager
+            # Verify the service is running
+            systemctl status iwura --no-pager
