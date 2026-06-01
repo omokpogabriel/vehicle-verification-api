@@ -26,6 +26,8 @@ jobs:
       - name: Run Tests
         run: mvn test
         env:
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+          DB_NAME: ${{ secrets.DB_NAME }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
 
       # Step 4: Build the production Fat JAR
