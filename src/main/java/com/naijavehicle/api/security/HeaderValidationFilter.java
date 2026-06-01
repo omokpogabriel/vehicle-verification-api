@@ -23,7 +23,7 @@ public class HeaderValidationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         
         // Skip validation for actuator or other internal paths if necessary
-        if (path.startsWith("/actuator")) {
+        if (path.startsWith("/actuator") || path.startsWith("/health")) {
             filterChain.doFilter(request, response);
             return;
         }
