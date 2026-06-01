@@ -64,6 +64,29 @@ jobs:
             EOF
             chmod 600 /etc/iwura.env
 
+            # Install and configure Vector for Better Stack logging (once)
+            if ! command -v vector &> /dev/null; then
+              curl -1sLf 'https://repositories.timber.io/public/vector/cfg/setup/bash.deb.sh' | bash
+              apt-get install -y vector
+            fi
+            cat > /etc/vector/vector.toml << 'VECTOR'
+            [sources.journald]
+            type = "journald"
+            include_units = ["iwura.service"]
+
+            [sinks.better_stack]
+            type = "http"
+            inputs = ["journald"]
+            uri = "https://in.logs.betterstack.com/"
+            encoding.codec = "json"
+
+            [sinks.better_stack.auth]
+            strategy = "bearer"
+            token = "${{ secrets.BETTER_STACK_TOKEN }}"
+            VECTOR
+            systemctl enable vector
+            systemctl restart vector
+
             # Create the systemd service if it doesn't exist
             if [ ! -f /etc/systemd/system/iwura.service ]; then
               cat > /etc/systemd/system/iwura.service << 'SERVICE'
