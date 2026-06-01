@@ -58,8 +58,8 @@ jobs:
             JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}
             JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }}
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            ASKNIID=${{ secrets.ASKNIID_MOBILE }}
-            ASKNIIDPASSWORD=${{ secrets.ASKNIID_MOBILE_PASSWORD }}
+            ASKNIID=${{ secrets.ASKNIID }}
+            ASKNIIDPASSWORD=${{ secrets.ASKNIIDPASSWORD }}
             PORT=${{ secrets.PORT }}
             EOF
             chmod 600 /etc/iwura.env
