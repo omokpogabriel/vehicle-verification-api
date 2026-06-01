@@ -25,6 +25,8 @@ jobs:
       # Step 3: Run tests before building
       - name: Run Tests
         run: mvn test
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
 
       # Step 4: Build the production Fat JAR
       - name: Build with Maven
