@@ -14,6 +14,6 @@ public class HomeController {
 
     @GetMapping("/health")
     public String healthCheck() {
-        return "API is healthy";
+        return "API is healthy 200";
     }
 }
