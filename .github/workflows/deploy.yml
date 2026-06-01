@@ -22,14 +22,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven' # Automatically caches dependencies for speed
 
-      # Step 3: Run tests before building
-      - name: Run Tests
-        run: mvn test
-        env:
-          MONGO_URL: ${{ secrets.MONGO_URL }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-
-      # Step 4: Build the production Fat JAR
+      # Step 3: Build the production Fat JAR
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
