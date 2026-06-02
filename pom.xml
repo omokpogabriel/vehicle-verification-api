@@ -112,6 +112,7 @@
 	</dependencies>
 
 	<build>
+		<finalName>iwura</finalName>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
