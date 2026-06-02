@@ -38,12 +38,12 @@ public class PayvisService {
                         ? ResponseEnum.SUCCESS.code : ResponseEnum.FAILED.code;
                 String status = code.equalsIgnoreCase(ResponseEnum.SUCCESS.code) ? "No Bill found" : "Bills Found";
                 return new ScrapingResult<>(plateNumber, "Payvis", status,code,
-                        body,ChannelEnum.PAY_VIS.name());
+                        body,ChannelEnum.PAY_VIS.name(), false);
             }
 
             return new ScrapingResult<>(
                     plateNumber, "", "Unabled to fetch data", ResponseEnum.FAILED.code,null,
-                    ChannelEnum.PAY_VIS.name()
+                    ChannelEnum.PAY_VIS.name(), false
             );
         } catch (Exception e) {
             throw new RuntimeException("Payvis API failed: " + e.getMessage(), e);

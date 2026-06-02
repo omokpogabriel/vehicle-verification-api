@@ -9,6 +9,6 @@ public class AppError {
     public static <T> ScrapingResult<T> exceptionFormat(String plateNumber, ChannelEnum type){
         return new ScrapingResult<T> (plateNumber, "",
                 "Something went wrong","ETO11",
-                null, type.name());
+                null, type.name(), false);
     }
 }

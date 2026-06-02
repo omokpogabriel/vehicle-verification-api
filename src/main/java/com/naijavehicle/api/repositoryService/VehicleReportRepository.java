@@ -38,8 +38,7 @@ public class VehicleReportRepository {
         try{
            boolean plateNumberExists =  mongoTemplate.exists(query, VehicleReport.class);
 
-           if(!plateNumberExists){
-               mongoTemplate.save(vehicleReport);
+           if(!plateNumberExists){mongoTemplate.save(vehicleReport);
            }else{
                mongoTemplate.upsert(query, update, VehicleReport.class);
            }

@@ -14,4 +14,5 @@ public class ScrapingResult<T> {
     private String code;
     private T additionalInfo;
     private String type;
+    private boolean isRetryState = false;
 }

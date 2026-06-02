@@ -45,17 +45,44 @@ public class VerificationServiceImpl implements VerificationService {
     @Qualifier("customThreadPool")
     private Executor customExecutor;
 
-    private VehicleReport checkExists(String plateNumber){
+    private VehicleReport checkExists(String plateNumber) {
         return vehicleReportRepository.findByPlateNumber(plateNumber);
     }
 
-    private  Map<ChannelEnum,ScrapingResult<?>> callDirect(String plateNumber, HttpServletRequest request)
-            throws BadRequestException {
-        var askNiidFuture = CompletableFuture
+    private void getNiidInsurance(String plateNumber) {
+        CompletableFuture
                 .supplyAsync(() -> askNiidInsuranceService.verifyLicensePlate(plateNumber),
                         customExecutor)
-                .completeOnTimeout( null,10, TimeUnit.SECONDS);
+                .completeOnTimeout(null, 1, TimeUnit.MINUTES)
+                .handle((result,ex) ->{
+                    if(ex == null){
+                      VehicleReport vehicleReport =  vehicleReportRepository.findByPlateNumber(plateNumber);
+                        extractedET011AndUpdate( plateNumber,result, vehicleReport);
+                    }else{
+                        log.info("exception -> {}", ex.getMessage());
+                    }
+                    return null;
+                });
+    }
 
+
+    public static ScrapingResult<InsuranceInfoDTO> getPendingRequest(String plateNumber) {
+        ScrapingResult<InsuranceInfoDTO> scrapResult = new ScrapingResult<>();
+
+        scrapResult.setPlateNumber(plateNumber);
+        scrapResult.setCarMake("Unknown");
+        scrapResult.setAdditionalInfo(null);
+        scrapResult.setStatus("Pending request");
+        scrapResult.setCode("ETO11");
+        scrapResult.setRetryState(true);
+        scrapResult.setType(ChannelEnum.VEHICLE_INSURANCE.name());
+        return scrapResult;
+    }
+
+    private Map<ChannelEnum, ScrapingResult<?>> callDirect(String plateNumber, HttpServletRequest request)
+            throws BadRequestException {
+
+        getNiidInsurance(plateNumber);
         var autoRegFuture = CompletableFuture
                 .supplyAsync(() -> autoRegService.verifyLicensePlate(plateNumber),
                         customExecutor)
@@ -72,16 +99,18 @@ public class VerificationServiceImpl implements VerificationService {
 
         var dvisFuture = CompletableFuture.supplyAsync(
                         () -> dvisService.verifyLicensePlate(plateNumber), customExecutor)
-                .orTimeout(15, TimeUnit.SECONDS)
-                .exceptionally(ex -> AppError.<String>exceptionFormat(plateNumber,
-                        ChannelEnum.DIVS));
+                .orTimeout(25, TimeUnit.SECONDS)
+                .exceptionally(ex -> {
+                    log.info("the error -> dvis {}", ex.getMessage());
+                           return AppError.<String>exceptionFormat(plateNumber,
+                                    ChannelEnum.DIVS);
+                        }
+                       );
 
-        CompletableFuture.allOf(askNiidFuture,autoRegFuture, payvisFuture, dvisFuture).join();
-
-        var askResult = askNiidInsuranceService.decodeAskNiidResult(askNiidFuture.join(), plateNumber);
+        CompletableFuture.allOf(autoRegFuture, payvisFuture, dvisFuture).join();
 
         Map<ChannelEnum, ScrapingResult<?>> result = new HashMap<>();
-        result.put(ChannelEnum.VEHICLE_INSURANCE, askResult);
+        result.put(ChannelEnum.VEHICLE_INSURANCE, VerificationServiceImpl.getPendingRequest(plateNumber));
         result.put(ChannelEnum.AUTO_REG, autoRegFuture.join());
         result.put(ChannelEnum.PAY_VIS, payvisFuture.join());
         result.put(ChannelEnum.DIVS, dvisFuture.join());
@@ -112,7 +141,7 @@ public class VerificationServiceImpl implements VerificationService {
                 .userId(userId)
                 .build();
 
-         vehicleReportRepository.saveReport(vehicleReport);
+        vehicleReportRepository.saveReport(vehicleReport);
         return result;
     }
 
@@ -122,21 +151,15 @@ public class VerificationServiceImpl implements VerificationService {
 
             VehicleReport existingReport = checkExists(plateNumber);
 
-            log.info("again -> {}",existingReport);
             if (existingReport != null) {
                 log.info("Cache hit for plate {}: {}", plateNumber, existingReport);
 
+                var insurance = existingReport.getResults().get(ChannelEnum.VEHICLE_INSURANCE);
 
-               var insurance =  existingReport.getResults().get(ChannelEnum.VEHICLE_INSURANCE);
-
-               if(insurance.getCode().equalsIgnoreCase("ETO11")){
-                   var responseXml = askNiidInsuranceService.verifyLicensePlate(plateNumber);
-                   var parsed = askNiidInsuranceService.decodeAskNiidResult( responseXml,plateNumber);
-
-                existingReport.getResults().put(ChannelEnum.VEHICLE_INSURANCE, parsed);
-                   log.info("the parsed -> {}", existingReport);
-                   vehicleReportRepository.updateReport(existingReport);
-               }
+                if (insurance.getCode().equalsIgnoreCase("ETO11") && !insurance.isRetryState()) {
+                    var responseXml = askNiidInsuranceService.verifyLicensePlate(plateNumber);
+                    extractedET011AndUpdate(plateNumber, responseXml, existingReport);
+                }
 
                 return existingReport.getResults().values().stream().toList();
             }
@@ -147,6 +170,19 @@ public class VerificationServiceImpl implements VerificationService {
             log.error("Verification failed for plate {}: {}", plateNumber, ExceptionUtils.getStackTrace(e));
             throw new SystemMalFunctionException("External verification service failure");
         }
+    }
+
+    private void extractedET011AndUpdate(String plateNumber, String responseXml, VehicleReport existingReport) {
+
+        var parsed = askNiidInsuranceService.decodeAskNiidResult(responseXml, plateNumber);
+
+        if(parsed != null){
+            existingReport.getResults().put(ChannelEnum.VEHICLE_INSURANCE, parsed);
+            log.info("the parsed -> {}", existingReport);
+            vehicleReportRepository.updateReport(existingReport);
+        }
+
+
     }
 
     @Override

@@ -99,7 +99,7 @@ public class AutoRegService {
                 var code = checkExpiredDate(detailInfo.getExpiryDate()) ? ResponseEnum.SUCCESS.code
                         : ResponseEnum.FAILED.code ;
                 return new ScrapingResult<>(plateNumber, make, status, code,
-                        detailInfo, ChannelEnum.AUTO_REG.name());
+                        detailInfo, ChannelEnum.AUTO_REG.name(), false);
             }
 
             String resultText = "";
@@ -118,7 +118,7 @@ public class AutoRegService {
 
             return new ScrapingResult<>(plateNumber, "AutoReg",
                     resultText.isEmpty() ? "No Data Found" : resultText,
-                    ResponseEnum.FAILED.code, null, ChannelEnum.AUTO_REG.name());
+                    ResponseEnum.FAILED.code, null, ChannelEnum.AUTO_REG.name(), false);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to reach server API", e);
