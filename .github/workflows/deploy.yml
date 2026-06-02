@@ -34,8 +34,8 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "target/*.jar"
-          target: "/root/"
-          strip_components: 1 # Drops the "target/" prefix so it goes straight into /root/
+          target: "/opt/iwura/"
+          strip_components: 1
 
       # Step 6: Execute remote commands via SSH to restart the app
       - name: Restart Spring Boot Service on Droplet
@@ -50,6 +50,15 @@ jobs:
               apt-get update -y && apt-get install -y openjdk-21-jre-headless
             fi
 
+            # Create unprivileged service user if it doesn't exist
+            if ! id -u iwura &>/dev/null; then
+              useradd -r -s /bin/false -d /opt/iwura iwura
+            fi
+
+            # Ensure app directory exists and is owned by the service user
+            mkdir -p /opt/iwura
+            chown iwura:iwura /opt/iwura
+
             # Write secrets to the env file (overwritten on every deploy)
             cat > /etc/iwura.env << 'EOF'
             MONGO_URL=${{ secrets.MONGO_URL }}
@@ -63,18 +72,20 @@ jobs:
             PORT=${{ secrets.PORT }}
             EOF
             chmod 600 /etc/iwura.env
+            chown iwura:iwura /etc/iwura.env
 
-            # Create the systemd service if it doesn't exist
-            if [ ! -f /etc/systemd/system/iwura.service ]; then
-              cat > /etc/systemd/system/iwura.service << 'SERVICE'
+            # Always overwrite the systemd service to pick up config changes
+            cat > /etc/systemd/system/iwura.service << 'SERVICE'
             [Unit]
             Description=Iwura Vehicle Verification API
             After=network.target
 
             [Service]
+            User=iwura
+            Group=iwura
             EnvironmentFile=/etc/iwura.env
-            ExecStart=/usr/bin/java -jar /root/iwura.jar
-            WorkingDirectory=/root
+            ExecStart=/usr/bin/java -jar /opt/iwura/iwura.jar
+            WorkingDirectory=/opt/iwura
             Restart=on-failure
             RestartSec=5
             StandardOutput=journal
@@ -83,15 +94,33 @@ jobs:
             [Install]
             WantedBy=multi-user.target
             SERVICE
-              systemctl daemon-reload
-              systemctl enable iwura
+            systemctl daemon-reload
+            systemctl enable iwura
+
+            # Back up the current JAR before overwriting
+            if [ -f /opt/iwura/iwura.jar ]; then
+              cp /opt/iwura/iwura.jar /opt/iwura/iwura.jar.bak
             fi
 
             # Rename the uploaded JAR to match the systemd service
-            mv /root/*.jar /root/iwura.jar
+            mv /opt/iwura/*.jar /opt/iwura/iwura.jar
+            chown iwura:iwura /opt/iwura/iwura.jar
 
             # Restart the service to apply the updates
             systemctl restart iwura
 
-            # Verify the service is running
+            # Wait for the service to stabilise; roll back if it crashed
+            sleep 5
+            if ! systemctl is-active --quiet iwura; then
+              echo "Service failed to start. Rolling back to previous JAR..."
+              journalctl -u iwura --no-pager -n 50
+              if [ -f /opt/iwura/iwura.jar.bak ]; then
+                cp /opt/iwura/iwura.jar.bak /opt/iwura/iwura.jar
+                chown iwura:iwura /opt/iwura/iwura.jar
+                systemctl restart iwura
+                echo "Rollback complete. Previous version restored."
+              fi
+              exit 1
+            fi
+
             systemctl status iwura --no-pager
