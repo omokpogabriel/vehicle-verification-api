@@ -12,14 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
-
 import org.springframework.web.util.HtmlUtils;
-import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.StringReader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,24 +68,19 @@ public class AskNiidInsuranceService {
         }
     }
 
-    public  ScrapingResult<InsuranceInfoDTO> decodeAskNiidResult(String responseXml, String plateNumber){
-        try{
+    public ScrapingResult<InsuranceInfoDTO> decodeAskNiidResult(String responseXml, String plateNumber) {
+        try {
             log.info("it entered here ->");
             ScrapingResult<InsuranceInfoDTO> scrapResult = new ScrapingResult<>();
-            if(responseXml == null){
-                scrapResult.setPlateNumber(plateNumber);
-                scrapResult.setCarMake("Unknown");
-                scrapResult.setAdditionalInfo(null);
-                scrapResult.setStatus("Pending request");
-                scrapResult.setCode("ETO11");
-                scrapResult.setType(ChannelEnum.VEHICLE_INSURANCE.name());
-                return scrapResult;
+            if (responseXml == null) {
+                return VerificationServiceImpl.getPendingRequest(plateNumber);
             }
             String soapResult = extractSoapString(responseXml);
-            var result= parseInsuranceXml(soapResult);//(plateNumber, soapResult);
+            var result = parseInsuranceXml(soapResult);//(plateNumber, soapResult);
             scrapResult.setPlateNumber(plateNumber);
             scrapResult.setCarMake(result.getMake());
             scrapResult.setAdditionalInfo(result);
+            scrapResult.setRetryState(false);
             scrapResult.setStatus(result.getStatus().equalsIgnoreCase("1") ?
                     ResponseEnum.SUCCESS.name() : ResponseEnum.FAILED.name());
             scrapResult.setCode(result.getStatus().equalsIgnoreCase("1") ?
@@ -103,7 +92,7 @@ public class AskNiidInsuranceService {
                     "Error: " + e.getMessage(),
                     ResponseEnum.FAILED.code,
                     null,
-                    "Vehicle License");
+                    "Vehicle License", false);
         }
     }
 

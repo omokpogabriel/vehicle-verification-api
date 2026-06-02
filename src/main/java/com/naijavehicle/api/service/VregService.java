@@ -28,7 +28,7 @@ public class VregService {
 
         var scrapingResult = new ScrapingResult<String>(
                 plateNumber, "", "Unabled to fetch data", ResponseEnum.FAILED.code,
-                "", ChannelEnum.VEHICLE_INSURANCE.name()
+                "", ChannelEnum.VEHICLE_INSURANCE.name(), false
         );
 
         var getChasis = Arrays.stream(askiInfo.split("(\s+\\|\s+)"))
@@ -63,7 +63,7 @@ public class VregService {
                     scrapingResult.setPlateNumber(vin);
                     return new ScrapingResult<String>(vin, "status", String.valueOf(status),
                             ResponseEnum.SUCCESS.code
-                            , ""+jsonResponse.getBody(), ChannelEnum.CUSTOM_REG.name());
+                            , ""+jsonResponse.getBody(), ChannelEnum.CUSTOM_REG.name(), false);
                 }
             }
 

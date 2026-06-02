@@ -54,7 +54,7 @@ public class DvisService {
             return new ScrapingResult<>(plateNumber, "DVIS", readableStatus,
                     code,
                     appInfo,
-                    ChannelEnum.DIVS.name());
+                    ChannelEnum.DIVS.name(), false);
         } catch (Exception e) {
             throw new RuntimeException("DVIS API failed: " + e.getMessage(), e);
         }
