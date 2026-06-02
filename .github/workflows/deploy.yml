@@ -12,11 +12,11 @@ jobs:
     steps:
       # Step 1: Check out the repository source code
       - name: Checkout Source Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       # Step 2: Set up Java 21 environment on the GitHub runner
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -26,19 +26,8 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
-      # Step 5: Securely upload the JAR to your Droplet via SCP
-      - name: Copy JAR to DigitalOcean Droplet
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DROPLET_IP }}
-          username: ${{ secrets.DROPLET_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "target/*.jar"
-          target: "/opt/iwura/"
-          strip_components: 1
-
-      # Step 6: Execute remote commands via SSH to restart the app
-      - name: Restart Spring Boot Service on Droplet
+      # Step 5a: Bootstrap the Droplet and back up the current JAR
+      - name: Prepare Droplet for Deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DROPLET_IP }}
@@ -59,17 +48,52 @@ jobs:
             mkdir -p /opt/iwura
             chown iwura:iwura /opt/iwura
 
+            # Back up the current JAR before the upload overwrites it
+            if [ -f /opt/iwura/iwura.jar ]; then
+              cp /opt/iwura/iwura.jar /opt/iwura/iwura.jar.bak
+            fi
+
+      # Step 5b: Securely upload the JAR to your Droplet via SCP
+      - name: Copy JAR to DigitalOcean Droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "target/iwura.jar"
+          target: "/opt/iwura/"
+          strip_components: 1
+
+      # Step 6: Execute remote commands via SSH to restart the app
+      - name: Restart Spring Boot Service on Droplet
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRATION: ${{ secrets.JWT_EXPIRATION }}
+          JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          ASKNIID: ${{ secrets.ASKNIID }}
+          ASKNIIDPASSWORD: ${{ secrets.ASKNIIDPASSWORD }}
+          PORT: ${{ secrets.PORT }}
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: MONGO_URL,DB_NAME,JWT_SECRET,JWT_EXPIRATION,JWT_REFRESH_EXPIRATION,GOOGLE_CLIENT_ID,ASKNIID,ASKNIIDPASSWORD,PORT
+          script: |
             # Write secrets to the env file (overwritten on every deploy)
-            cat > /etc/iwura.env << 'EOF'
-            MONGO_URL=${{ secrets.MONGO_URL }}
-            DB_NAME=${{ secrets.DB_NAME }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}
-            JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }}
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            ASKNIID=${{ secrets.ASKNIID }}
-            ASKNIIDPASSWORD=${{ secrets.ASKNIIDPASSWORD }}
-            PORT=${{ secrets.PORT }}
+            cat > /etc/iwura.env << EOF
+            MONGO_URL=$MONGO_URL
+            DB_NAME=$DB_NAME
+            JWT_SECRET=$JWT_SECRET
+            JWT_EXPIRATION=$JWT_EXPIRATION
+            JWT_REFRESH_EXPIRATION=$JWT_REFRESH_EXPIRATION
+            GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+            ASKNIID=$ASKNIID
+            ASKNIIDPASSWORD=$ASKNIIDPASSWORD
+            PORT=$PORT
             EOF
             chmod 600 /etc/iwura.env
             chown iwura:iwura /etc/iwura.env
@@ -97,20 +121,13 @@ jobs:
             systemctl daemon-reload
             systemctl enable iwura
 
-            # Back up the current JAR before overwriting
-            if [ -f /opt/iwura/iwura.jar ]; then
-              cp /opt/iwura/iwura.jar /opt/iwura/iwura.jar.bak
-            fi
-
-            # Rename the uploaded JAR to match the systemd service
-            mv /opt/iwura/*.jar /opt/iwura/iwura.jar
             chown iwura:iwura /opt/iwura/iwura.jar
 
             # Restart the service to apply the updates
             systemctl restart iwura
 
             # Wait for the service to stabilise; roll back if it crashed
-            sleep 5
+            sleep 25
             if ! systemctl is-active --quiet iwura; then
               echo "Service failed to start. Rolling back to previous JAR..."
               journalctl -u iwura --no-pager -n 50

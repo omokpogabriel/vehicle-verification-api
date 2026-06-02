@@ -19,7 +19,7 @@ public class HeaderValidationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        
+   /*
         String path = request.getRequestURI();
         
         // Skip validation for actuator or other internal paths if necessary
@@ -42,7 +42,7 @@ public class HeaderValidationFilter extends OncePerRequestFilter {
             response.getWriter().write("{\"error\": \"Missing required headers: ipaddress, location, and appInstallationId must be provided in the request headers.\"}");
             return;
         }
-
+*/
         filterChain.doFilter(request, response);
     }
 }
