@@ -78,7 +78,7 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           ASKNIID: ${{ secrets.ASKNIID }}
           ASKNIIDPASSWORD: ${{ secrets.ASKNIIDPASSWORD }}
-          PORT: ${{ secrets.PORT }}
+          APP_PORT: ${{ secrets.APP_PORT }}
         with:
           host: ${{ secrets.DROPLET_IP }}
           username: ${{ secrets.DROPLET_USER }}
@@ -95,7 +95,7 @@ jobs:
               echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
               echo "ASKNIID=$ASKNIID"
               echo "ASKNIIDPASSWORD=$ASKNIIDPASSWORD"
-              echo "PORT=$PORT"
+              echo "APP_PORT=$APP_PORT"
             } > /etc/iwura.env
             chmod 600 /etc/iwura.env
             chown iwura:iwura /etc/iwura.env
