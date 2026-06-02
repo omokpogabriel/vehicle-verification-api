@@ -84,17 +84,17 @@ jobs:
           envs: MONGO_URL,DB_NAME,JWT_SECRET,JWT_EXPIRATION,JWT_REFRESH_EXPIRATION,GOOGLE_CLIENT_ID,ASKNIID,ASKNIIDPASSWORD,PORT
           script: |
             # Write secrets to the env file (overwritten on every deploy)
-            cat > /etc/iwura.env << EOF
-            MONGO_URL=$MONGO_URL
-            DB_NAME=$DB_NAME
-            JWT_SECRET=$JWT_SECRET
-            JWT_EXPIRATION=$JWT_EXPIRATION
-            JWT_REFRESH_EXPIRATION=$JWT_REFRESH_EXPIRATION
-            GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
-            ASKNIID=$ASKNIID
-            ASKNIIDPASSWORD=$ASKNIIDPASSWORD
-            PORT=$PORT
-            EOF
+            {
+              echo "MONGO_URL=$MONGO_URL"
+              echo "DB_NAME=$DB_NAME"
+              echo "JWT_SECRET=$JWT_SECRET"
+              echo "JWT_EXPIRATION=$JWT_EXPIRATION"
+              echo "JWT_REFRESH_EXPIRATION=$JWT_REFRESH_EXPIRATION"
+              echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
+              echo "ASKNIID=$ASKNIID"
+              echo "ASKNIIDPASSWORD=$ASKNIIDPASSWORD"
+              echo "PORT=$PORT"
+            } > /etc/iwura.env
             chmod 600 /etc/iwura.env
             chown iwura:iwura /etc/iwura.env
 
@@ -108,7 +108,7 @@ jobs:
             User=iwura
             Group=iwura
             EnvironmentFile=/etc/iwura.env
-            ExecStart=/usr/bin/java -jar /opt/iwura/iwura.jar
+            ExecStart=/usr/bin/java -Djava.net.preferIPv4Stack=true -jar /opt/iwura/iwura.jar
             WorkingDirectory=/opt/iwura
             Restart=on-failure
             RestartSec=5
