@@ -122,7 +122,7 @@ public class VerificationServiceImpl implements VerificationService {
          result.values().forEach(
                 value -> {
                     if(value.getType().equalsIgnoreCase(ChannelEnum.AUTO_REG.name()) &&
-                            value.getCode().equalsIgnoreCase(ResponseEnum.FAILED.code)
+                            !value.getCode().equalsIgnoreCase(ResponseEnum.SUCCESS.code)
                     ){
                         failureCount.incrementAndGet();
                     }
@@ -132,26 +132,11 @@ public class VerificationServiceImpl implements VerificationService {
                     ){
                         failureCount.incrementAndGet();
                     }
-
-                    if(value.getType().equalsIgnoreCase(ChannelEnum.VEHICLE_INSURANCE.name()) &&
-                            value.getCode().equalsIgnoreCase(ResponseEnum.FAILED.code)
-                    ){
-                        failureCount.incrementAndGet();
-                    }else if(value.getType().equalsIgnoreCase(ChannelEnum.PAY_VIS.name()) &&
-                            value.getCode().equalsIgnoreCase(ResponseEnum.SUCCESS.code) &&
-                            failureCount.get() > 1)
-                    {
-                        failureCount.incrementAndGet();
-                    }
-
                 });
 
          if(failureCount.get() > 2){
              throw new BadRequestException("Failed to fetch result");
          }
-
-
-
 
         // 4. Audit & Persistence
         String appInstallationId = GeneralUtils.getAppInstallationId(request);
