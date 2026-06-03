@@ -118,25 +118,7 @@ public class VerificationServiceImpl implements VerificationService {
         result.put(ChannelEnum.DIVS, dvisFuture.join());
         log.info(" the g response -> {}", result);
 
-        AtomicInteger failureCount = new AtomicInteger();
-         result.values().forEach(
-                value -> {
-                    if(value.getType().equalsIgnoreCase(ChannelEnum.AUTO_REG.name()) &&
-                            !value.getCode().equalsIgnoreCase(ResponseEnum.SUCCESS.code)
-                    ){
-                        failureCount.incrementAndGet();
-                    }
-
-                    if(value.getType().equalsIgnoreCase(ChannelEnum.DIVS.name()) &&
-                           value.getAdditionalInfo().toString().toLowerCase().contains("not exist")
-                    ){
-                        failureCount.incrementAndGet();
-                    }
-                });
-
-         if(failureCount.get() > 2){
-             throw new BadRequestException("Failed to fetch result");
-         }
+        checkForValidity(result);
 
         // 4. Audit & Persistence
         String appInstallationId = GeneralUtils.getAppInstallationId(request);
@@ -163,6 +145,28 @@ public class VerificationServiceImpl implements VerificationService {
         return result;
     }
 
+    private static void checkForValidity(Map<ChannelEnum, ScrapingResult<?>> result) throws BadRequestException {
+        AtomicInteger failureCount = new AtomicInteger();
+        result.values().forEach(
+               value -> {
+                   if(value.getType().equalsIgnoreCase(ChannelEnum.AUTO_REG.name()) &&
+                           !value.getCode().equalsIgnoreCase(ResponseEnum.SUCCESS.code)
+                   ){
+                       failureCount.incrementAndGet();
+                   }
+
+                   if(value.getType().equalsIgnoreCase(ChannelEnum.DIVS.name()) &&
+                          value.getAdditionalInfo().toString().toLowerCase().contains("not exist")
+                   ){
+                       failureCount.incrementAndGet();
+                   }
+               });
+
+        if(failureCount.get() > 1){
+            throw new BadRequestException("Failed to fetch valid result");
+        }
+    }
+
     @Override
     public List<ScrapingResult<?>> verifyPlate(String plateNumber, HttpServletRequest request) {
         try {
@@ -174,6 +178,7 @@ public class VerificationServiceImpl implements VerificationService {
 
                 var insurance = existingReport.getResults().get(ChannelEnum.VEHICLE_INSURANCE);
 
+                checkForValidity(existingReport.getResults());
                 if (insurance.getCode().equalsIgnoreCase("ETO11") && !insurance.isRetryState()) {
                     var responseXml = askNiidInsuranceService.verifyLicensePlate(plateNumber);
                     extractedET011AndUpdate(plateNumber, responseXml, existingReport);
@@ -184,7 +189,10 @@ public class VerificationServiceImpl implements VerificationService {
 
 
             return callDirect(plateNumber, request).values().stream().toList();
-        } catch (Exception e) {
+        } catch (BadRequestException e) {
+            log.error("badRerquest{}: {}", plateNumber, ExceptionUtils.getStackTrace(e));
+            throw new SystemMalFunctionException(e.getMessage());
+        }catch (Exception e) {
             log.error("Verification failed for plate {}: {}", plateNumber, ExceptionUtils.getStackTrace(e));
             throw new SystemMalFunctionException("External verification service failure");
         }
