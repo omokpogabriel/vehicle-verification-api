@@ -43,10 +43,9 @@ public class DvisService {
                 readableStatus = ResponseEnum.FAILED.name();
 
             } else {
-
-                readableStatus = jsonResponse.getMessage()
-                        .contains("Invalid") ? "Invalid" : "Valid";
-                code = readableStatus.equalsIgnoreCase("Valid") ? ResponseEnum.SUCCESS.name()
+                String message = jsonResponse.getMessage().toLowerCase();
+                readableStatus = (message.contains("Invalid") || message.contains("not exist") )? message : "Valid";
+                code = readableStatus.equalsIgnoreCase("Valid") ? ResponseEnum.SUCCESS.code
                         : ResponseEnum.FAILED.code;
                 appInfo = jsonResponse.getMessage() + " -Expire: " + jsonResponse.getRwcExp();
             }

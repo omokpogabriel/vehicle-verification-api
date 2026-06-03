@@ -51,4 +51,6 @@ public class VehicleReport {
 
     @Version
     private Long version; // Optimistic locking to prevent concurrent write issues
+
+    private boolean isValid;
 }

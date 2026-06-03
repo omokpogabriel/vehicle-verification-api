@@ -4,6 +4,7 @@ import com.naijavehicle.api.dto.InsuranceInfoDTO;
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.dto.VehicleAdditionalInfoDTO;
 import com.naijavehicle.api.enums.ChannelEnum;
+import com.naijavehicle.api.enums.ResponseEnum;
 import com.naijavehicle.api.exceptions.SystemMalFunctionException;
 import com.naijavehicle.api.models.User;
 import com.naijavehicle.api.models.VehicleReport;
@@ -27,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @RequiredArgsConstructor
@@ -115,10 +117,41 @@ public class VerificationServiceImpl implements VerificationService {
         result.put(ChannelEnum.PAY_VIS, payvisFuture.join());
         result.put(ChannelEnum.DIVS, dvisFuture.join());
         log.info(" the g response -> {}", result);
-        result.values().stream().filter(
-                        value -> !value.getStatus().toLowerCase().contains("error"))
-                .findFirst()
-                .orElseThrow(() -> new BadRequestException("Failed to fetch result"));
+
+        AtomicInteger failureCount = new AtomicInteger();
+         result.values().forEach(
+                value -> {
+                    if(value.getType().equalsIgnoreCase(ChannelEnum.AUTO_REG.name()) &&
+                            value.getCode().equalsIgnoreCase(ResponseEnum.FAILED.code)
+                    ){
+                        failureCount.incrementAndGet();
+                    }
+
+                    if(value.getType().equalsIgnoreCase(ChannelEnum.DIVS.name()) &&
+                           value.getAdditionalInfo().toString().toLowerCase().contains("not exist")
+                    ){
+                        failureCount.incrementAndGet();
+                    }
+
+                    if(value.getType().equalsIgnoreCase(ChannelEnum.VEHICLE_INSURANCE.name()) &&
+                            value.getCode().equalsIgnoreCase(ResponseEnum.FAILED.code)
+                    ){
+                        failureCount.incrementAndGet();
+                    }else if(value.getType().equalsIgnoreCase(ChannelEnum.PAY_VIS.name()) &&
+                            value.getCode().equalsIgnoreCase(ResponseEnum.SUCCESS.code) &&
+                            failureCount.get() > 1)
+                    {
+                        failureCount.incrementAndGet();
+                    }
+
+                });
+
+         if(failureCount.get() > 2){
+             throw new BadRequestException("Failed to fetch result");
+         }
+
+
+
 
         // 4. Audit & Persistence
         String appInstallationId = GeneralUtils.getAppInstallationId(request);
