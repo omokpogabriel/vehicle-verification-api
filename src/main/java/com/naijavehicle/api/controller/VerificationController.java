@@ -42,7 +42,7 @@ public class VerificationController {
 
         VerificationResponseObject vro = VerificationResponseObject.builder()
                 .totalCount(result.size())
-                .nextRetry(Instant.now().plusSeconds(10))
+                .nextRetry(Instant.now().plusSeconds(30))
                 .successCount(totalSuccessSearch).report(result).build();
         return ResponseEntity.status(HttpStatus.OK).body(
                 ApiResponseBuilder.builder()
