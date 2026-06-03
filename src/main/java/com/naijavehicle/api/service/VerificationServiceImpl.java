@@ -3,6 +3,7 @@ package com.naijavehicle.api.service;
 import com.naijavehicle.api.dto.InsuranceInfoDTO;
 import com.naijavehicle.api.dto.ScrapingResult;
 import com.naijavehicle.api.dto.VehicleAdditionalInfoDTO;
+import com.naijavehicle.api.dto.response.ApiResponse;
 import com.naijavehicle.api.enums.ChannelEnum;
 import com.naijavehicle.api.enums.ResponseEnum;
 import com.naijavehicle.api.exceptions.SystemMalFunctionException;
@@ -10,6 +11,7 @@ import com.naijavehicle.api.models.User;
 import com.naijavehicle.api.models.VehicleReport;
 import com.naijavehicle.api.repositoryService.UserRepository;
 import com.naijavehicle.api.repositoryService.VehicleReportRepository;
+import com.naijavehicle.api.security.JwtTokenProvider;
 import com.naijavehicle.api.utils.GeneralUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -18,10 +20,13 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
+import java.net.http.HttpHeaders;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +47,7 @@ public class VerificationServiceImpl implements VerificationService {
     private final VregService vregService;
     private final VehicleReportRepository vehicleReportRepository;
     private final UserRepository userRepository;
+    private final JwtTokenProvider tokenProvider;
 
     @Autowired
     @Qualifier("customThreadPool")
@@ -171,6 +177,17 @@ public class VerificationServiceImpl implements VerificationService {
     public List<ScrapingResult<?>> verifyPlate(String plateNumber, HttpServletRequest request) {
         try {
 
+            String bearerToken = request.getHeader("Authorization");
+            if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+                bearerToken = bearerToken.substring(7);
+
+
+                if (!tokenProvider.validateToken(bearerToken) ||
+                        !"access".equals(tokenProvider.getTokenType(bearerToken))) {
+                    throw new BadCredentialsException("Invalid token");
+
+                }
+            }
             VehicleReport existingReport = checkExists(plateNumber);
 
             if (existingReport != null) {
@@ -191,6 +208,9 @@ public class VerificationServiceImpl implements VerificationService {
             return callDirect(plateNumber, request).values().stream().toList();
         } catch (BadRequestException e) {
             log.error("badRerquest{}: {}", plateNumber, ExceptionUtils.getStackTrace(e));
+            throw new SystemMalFunctionException(e.getMessage());
+        } catch (BadCredentialsException e) {
+            log.error("bad credential{}: {}", plateNumber, ExceptionUtils.getStackTrace(e));
             throw new SystemMalFunctionException(e.getMessage());
         }catch (Exception e) {
             log.error("Verification failed for plate {}: {}", plateNumber, ExceptionUtils.getStackTrace(e));
