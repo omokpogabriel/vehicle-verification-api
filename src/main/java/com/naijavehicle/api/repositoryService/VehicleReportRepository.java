@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -71,6 +72,11 @@ public class VehicleReportRepository {
         Query query = new Query(Criteria.where("plateNumber").is(plateNumber));
         var result =  mongoTemplate.findOne(query, VehicleReport.class);
         return result;
+    }
+
+    public List<VehicleReport> findByPlateNumbers(List<String> plateNumbers) {
+        Query query = new Query(Criteria.where("plateNumber").in(plateNumbers));
+        return mongoTemplate.find(query, VehicleReport.class);
     }
 
 }

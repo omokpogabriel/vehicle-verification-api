@@ -1,24 +1,32 @@
 package com.naijavehicle.api.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.naijavehicle.api.dto.HistoryItemDTO;
 import com.naijavehicle.api.dto.VerificationResponseObject;
 import com.naijavehicle.api.dto.response.ApiResponseBuilder;
 import com.naijavehicle.api.enums.ResponseEnum;
 import com.naijavehicle.api.models.User;
+import com.naijavehicle.api.models.UserVerification;
+import com.naijavehicle.api.models.VehicleReport;
 import com.naijavehicle.api.repositoryService.UserRepository;
+import com.naijavehicle.api.repositoryService.UserVerificationRepository;
 import com.naijavehicle.api.repositoryService.VehicleReportRepository;
 import com.naijavehicle.api.service.VerificationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/verify")
@@ -28,7 +36,9 @@ public class VerificationController {
 
     private final VerificationService verificationService;
     private final VehicleReportRepository vehicleReportRepository;
+    private final UserVerificationRepository userVerificationRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     @GetMapping("/plate/{plateNumber}")
     public ResponseEntity<ApiResponseBuilder<?>> verifyPlate(@PathVariable @NotBlank String plateNumber,
@@ -76,10 +86,34 @@ public class VerificationController {
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
                 page,
                 size,
-                org.springframework.data.domain.Sort.by("updatedAt").descending()
+                org.springframework.data.domain.Sort.by("verifiedAt").descending()
         );
 
-        var reportsPage = vehicleReportRepository.findByUserId(user.getUserId(), pageable);
+        var uvPage = userVerificationRepository.findByUserId(user.getUserId(), pageable);
+
+        List<String> plateNumbers = uvPage.getContent().stream()
+                .map(UserVerification::getPlateNumber)
+                .toList();
+
+        Map<String, VehicleReport> reportMap = vehicleReportRepository.findByPlateNumbers(plateNumbers)
+                .stream()
+                .collect(Collectors.toMap(VehicleReport::getPlateNumber, r -> r));
+
+        Map<String, UserVerification> uvMap = uvPage.getContent().stream()
+                .collect(Collectors.toMap(UserVerification::getPlateNumber, uv -> uv));
+
+        List<HistoryItemDTO> items = plateNumbers.stream()
+                .map(plate -> {
+                    VehicleReport report = reportMap.get(plate);
+                    UserVerification uv = uvMap.get(plate);
+                    return (report != null && uv != null)
+                            ? HistoryItemDTO.from(report, uv, objectMapper)
+                            : null;
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        var reportsPage = new PageImpl<>(items, pageable, uvPage.getTotalElements());
 
         return ResponseEntity.status(HttpStatus.OK).body(
                 ApiResponseBuilder.builder()

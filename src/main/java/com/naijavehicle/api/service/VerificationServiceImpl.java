@@ -48,6 +48,7 @@ public class VerificationServiceImpl implements VerificationService {
     private final VehicleReportRepository vehicleReportRepository;
     private final UserRepository userRepository;
     private final JwtTokenProvider tokenProvider;
+    private final com.naijavehicle.api.repositoryService.UserVerificationRepository userVerificationRepository;
 
     @Autowired
     @Qualifier("customThreadPool")
@@ -55,6 +56,16 @@ public class VerificationServiceImpl implements VerificationService {
 
     private VehicleReport checkExists(String plateNumber) {
         return vehicleReportRepository.findByPlateNumber(plateNumber);
+    }
+
+    private String resolveUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()
+                && !authentication.getName().equals("anonymousUser")) {
+            User user = userRepository.findByUsername(authentication.getName()).orElse(null);
+            if (user != null) return user.getUserId();
+        }
+        return null;
     }
 
     private void getNiidInsurance(String plateNumber) {
@@ -128,16 +139,7 @@ public class VerificationServiceImpl implements VerificationService {
 
         // 4. Audit & Persistence
         String appInstallationId = GeneralUtils.getAppInstallationId(request);
-
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userId = null;
-        if (authentication != null && authentication.isAuthenticated()
-                && !authentication.getName().equals("anonymousUser")) {
-            User user = userRepository.findByUsername(authentication.getName()).orElse(null);
-            if (user != null) {
-                userId = user.getUserId();
-            }
-        }
+        String userId = resolveUserId();
 
         VehicleReport vehicleReport = VehicleReport.builder()
                 .appInstallationId(appInstallationId)
@@ -148,6 +150,11 @@ public class VerificationServiceImpl implements VerificationService {
                 .build();
 
         vehicleReportRepository.saveReport(vehicleReport);
+
+        if (userId != null) {
+            userVerificationRepository.saveOrUpdate(userId, plateNumber);
+        }
+
         return result;
     }
 
@@ -199,6 +206,11 @@ public class VerificationServiceImpl implements VerificationService {
                 if (insurance.getCode().equalsIgnoreCase("ETO11") && !insurance.isRetryState()) {
                     var responseXml = askNiidInsuranceService.verifyLicensePlate(plateNumber);
                     extractedET011AndUpdate(plateNumber, responseXml, existingReport);
+                }
+
+                String userId = resolveUserId();
+                if (userId != null) {
+                    userVerificationRepository.saveOrUpdate(userId, plateNumber);
                 }
 
                 return existingReport.getResults().values().stream().toList();
