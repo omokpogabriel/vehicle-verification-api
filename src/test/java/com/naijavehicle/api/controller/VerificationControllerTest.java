@@ -1,8 +1,11 @@
 package com.naijavehicle.api.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.naijavehicle.api.models.User;
+import com.naijavehicle.api.models.UserVerification;
 import com.naijavehicle.api.models.VehicleReport;
 import com.naijavehicle.api.repositoryService.UserRepository;
+import com.naijavehicle.api.repositoryService.UserVerificationRepository;
 import com.naijavehicle.api.repositoryService.VehicleReportRepository;
 import com.naijavehicle.api.service.VerificationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -36,7 +40,13 @@ public class VerificationControllerTest {
     private VehicleReportRepository vehicleReportRepository;
 
     @Mock
+    private UserVerificationRepository userVerificationRepository;
+
+    @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ObjectMapper objectMapper;
 
     @InjectMocks
     private VerificationController verificationController;
@@ -63,9 +73,15 @@ public class VerificationControllerTest {
         when(auth.getName()).thenReturn("testuser");
 
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-        
-        PageImpl<VehicleReport> page = new PageImpl<>(Collections.singletonList(testReport), PageRequest.of(0, 10), 1);
-        when(vehicleReportRepository.findByUserId(anyString(), any())).thenReturn(page);
+
+        UserVerification uv = new UserVerification();
+        uv.setUserId("test-user-id");
+        uv.setPlateNumber("ABC-123");
+        uv.setVerifiedAt(LocalDateTime.now());
+        PageImpl<UserVerification> uvPage = new PageImpl<>(Collections.singletonList(uv), PageRequest.of(0, 10), 1);
+        when(userVerificationRepository.findByUserId(anyString(), any())).thenReturn(uvPage);
+
+        when(vehicleReportRepository.findByPlateNumbers(any())).thenReturn(Collections.singletonList(testReport));
 
         ResponseEntity<?> response = verificationController.getHistory(0, 10, auth);
         assertEquals(200, response.getStatusCode().value());
