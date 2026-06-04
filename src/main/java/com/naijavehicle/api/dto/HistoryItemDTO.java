@@ -34,7 +34,6 @@ public class HistoryItemDTO {
 
         if (results != null) {
             ScrapingResult<?> autoReg = results.get(ChannelEnum.AUTO_REG);
-            make = autoReg.getCarMake();
             if (autoReg != null && autoReg.getAdditionalInfo() != null) {
                 try {
                     VehicleAdditionalInfoDTO info = objectMapper.convertValue(
